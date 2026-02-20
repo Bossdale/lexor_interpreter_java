@@ -1,41 +1,45 @@
 package org.lexor;
 
-import org.lexor.ast.nodes.*;
+import org.lexor.ast.nodes.ProgramNode;
 import org.lexor.ast.visitor.ASTPrinter;
+import org.lexor.lexer.Lexer;
 import org.lexor.lexer.Token;
-import org.lexor.lexer.TokenType;
+import org.lexor.parser.Parser;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public class Main {
     public static void main(String[] args) {
-        System.out.println("--- TESTING PHASE 2: AST & VISITOR ---");
+        System.out.println("--- TESTING PHASE 3: LEXER + PARSER PIPELINE ---");
 
-        // 1. Manually create the Tokens that the Lexer WOULD have generated
-        Token typeToken = new Token(TokenType.INT, "INT", 3);
-        Token idToken = new Token(TokenType.IDENTIFIER, "_myVar", 3);
-        Token valueToken = new Token(TokenType.INT_LITERAL, "10", 3);
+        // 1. Write a valid LEXOR script
+        // Note the '$' at the end of statements as required by the spec!
+        String sourceCode =
+                "SCRIPT AREA\n" +
+                        "START SCRIPT\n" +
+                        "INT _myVar = 10 $\n" +
+                        "FLOAT _pi = 3.14 $\n" +
+                        "_myVar = 10 + 5 * (2 + 3) $\n" +
+                        "END SCRIPT";
 
-        // 2. Manually build the AST Nodes
-        // A literal node holding the number 10
-        LiteralNode literal10 = new LiteralNode(valueToken);
+        System.out.println("Source Code:");
+        System.out.println(sourceCode);
+        System.out.println("\n------------------------------------------------\n");
 
-        // A variable declaration node: INT _myVar = 10
-        VarDeclNode declaration = new VarDeclNode(typeToken, idToken, literal10);
+        // 2. PHASE 1: Lexical Analysis
+        Lexer lexer = new Lexer(sourceCode);
+        List<Token> tokens = lexer.scanTokens();
+        System.out.println("Lexer: Successfully scanned " + tokens.size() + " tokens.");
 
-        // Put it inside lists for the ProgramNode
-        List<VarDeclNode> declarations = new ArrayList<>();
-        declarations.add(declaration);
-        List<StatementNode> statements = new ArrayList<>();
+        // 3. PHASE 3: Syntax Analysis (Parsing using the Pushdown Automaton)
+        Parser parser = new Parser(tokens);
+        ProgramNode astRoot = parser.parse();
+        System.out.println("Parser: Successfully built the Abstract Syntax Tree.");
 
-        // Create the root of the tree
-        ProgramNode program = new ProgramNode(declarations, statements);
-
-        // 3. Test the Visitor Pattern
+        // 4. Print the generated AST to verify the structure and math precedence
+        System.out.println("\n--- GENERATED AST ---");
         ASTPrinter printer = new ASTPrinter();
-        String treeString = printer.print(program);
-
+        String treeString = printer.print(astRoot);
         System.out.println(treeString);
     }
 }

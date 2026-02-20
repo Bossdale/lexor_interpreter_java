@@ -69,7 +69,7 @@ public class Lexer {
                 break;
 
             // Ignore whitespace
-            case ' ':
+             case ' ':
             case '\r':
             case '\t':
                 break;
