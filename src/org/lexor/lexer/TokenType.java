@@ -7,18 +7,29 @@ public enum TokenType {
     PLUS, MINUS, STAR, SLASH, MODULO, // + - * / %
     AMPERSAND,                     // & (Concatenator)
     DOLLAR,                        // $ (Next line / Carriage return)
-    EQUAL,                         // = (For variable assignment)
+    EQUAL,                         // = (Assignment)
+    COMMA, COLON,                  // , :
+
+    // Relational Operators
+    GREATER, GREATER_EQUAL,        // >  >=
+    LESS, LESS_EQUAL,              // <  <=
+    EQUAL_EQUAL, NOT_EQUAL,        // ==  <>
 
     // Literals
-    IDENTIFIER,                    // Variable names (e.g., _myVar, val1)
-    INT_LITERAL,                   // Integer numbers (e.g., 42)
-    FLOAT_LITERAL,                 // Floating point numbers (e.g., 3.14)
-    CHAR_LITERAL,                  // Single characters
-    BOOL_LITERAL,                  // true or false
+    IDENTIFIER,
+    INT_LITERAL,
+    FLOAT_LITERAL,
+    CHAR_LITERAL,
+    BOOL_LITERAL,
 
-    // Reserved Keywords (All caps as per specification)
-    SCRIPT, AREA, START, END,      // SCRIPT AREA, START SCRIPT, END SCRIPT
+    // Reserved Keywords (Control Flow & I/O)
+    SCRIPT, AREA, START, END,      // Program structure
+    DECLARE,                       // Declaration marker
     INT, CHAR, BOOL, FLOAT,        // Data types
+    IF, ELSE,                      // Conditionals
+    REPEAT, WHEN, FOR,             // Loops
+    SCAN, PRINT,                   // I/O
+    AND, OR, NOT,                  // Logical operators
 
-    EOF                            // End Of File
+    EOF
 }
