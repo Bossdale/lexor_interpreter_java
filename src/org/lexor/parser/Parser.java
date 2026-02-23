@@ -225,12 +225,7 @@ public class Parser {
                 }
                 operatorStack.pop(); // Discard the '(' token
                 expectingOperand = false;
-            }
-            else if (token.type == TokenType.DOLLAR) {
-                nodeStack.push(new NewlineNode());
-                expectingOperand = false;
-            }
-            else if (isOperator(token.type)) {
+            }else if (isOperator(token.type)) {
                 if (expectingOperand && (token.type == TokenType.MINUS || token.type == TokenType.PLUS || token.type == TokenType.NOT)) {
                     operatorStack.push(token);
                 }else {
@@ -259,17 +254,35 @@ public class Parser {
     }
 
     private void reduce(Stack<ExpressionNode> nodeStack, Stack<Token> operatorStack) {
+        if (operatorStack.isEmpty()) return;
         Token operator = operatorStack.pop();
 
-        // 1. Handle Unary Operators (NOT, unary -, unary +)
-        if (isUnary(operator.type)) {
-            if (nodeStack.isEmpty()) throw new RuntimeException("Syntax Error: Missing operand for unary operator " + operator.lexeme);
-            ExpressionNode right = nodeStack.pop();
-            nodeStack.push(new UnaryExprNode(operator, right));
+        // 1. Handle Unary-Only Operators (NOT is always unary) [cite: 53-54]
+        if (operator.type == TokenType.NOT) {
+            if (nodeStack.isEmpty()) throw new RuntimeException("Syntax Error: Missing operand for NOT.");
+            nodeStack.push(new UnaryExprNode(operator, nodeStack.pop()));
+            return;
         }
-        // 2. Handle Binary/Logical Operators
+
+        // 2. Handle PLUS and MINUS (Can be Unary OR Binary) [cite: 41, 55-57]
+        if (operator.type == TokenType.PLUS || operator.type == TokenType.MINUS) {
+            // If we only have one operand on the stack, it MUST be unary
+            // OR if the PDA logic specifically pushed it as a unary (based on your 'expectingOperand' flag)
+            if (nodeStack.size() < 2) {
+                ExpressionNode right = nodeStack.pop();
+                nodeStack.push(new UnaryExprNode(operator, right));
+            } else {
+                // Otherwise, treat as Binary
+                ExpressionNode right = nodeStack.pop();
+                ExpressionNode left = nodeStack.pop();
+                nodeStack.push(new BinaryExprNode(left, operator, right));
+            }
+        }
+        // 3. Handle Standard Binary/Logical Operators [cite: 40, 42-44, 51-52]
         else {
-            if (nodeStack.size() < 2) throw new RuntimeException("Syntax Error: Missing operand for operator " + operator.lexeme);
+            if (nodeStack.size() < 2) {
+                throw new RuntimeException("Syntax Error at line " + operator.line + ": Missing operand for " + operator.lexeme);
+            }
             ExpressionNode right = nodeStack.pop();
             ExpressionNode left = nodeStack.pop();
 
@@ -311,8 +324,7 @@ public class Parser {
 
     private boolean isPartOfExpression(TokenType type) {
         return isLiteralOrIdentifier(type) || isOperator(type) ||
-                type == TokenType.LEFT_PAREN || type == TokenType.RIGHT_PAREN ||
-                type == TokenType.DOLLAR; // Allow NewlineNode in expressions
+                type == TokenType.LEFT_PAREN || type == TokenType.RIGHT_PAREN;
     }
 
     private boolean isLiteralOrIdentifier(TokenType type) {

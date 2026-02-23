@@ -13,22 +13,34 @@ public class Lexer {
     private int line = 1;
 
     // A map to quickly check if an identifier is actually a reserved keyword
-    private static final Map<String, TokenType> keywords = new HashMap<>();
+    private static final Map<String, TokenType> keywords;
     static {
+        keywords = new HashMap<>();
         keywords.put("SCRIPT", TokenType.SCRIPT);
         keywords.put("AREA", TokenType.AREA);
         keywords.put("START", TokenType.START);
         keywords.put("END", TokenType.END);
+
+        // ADD THIS:
+        keywords.put("DECLARE", TokenType.DECLARE);
+
+        // Make sure you have your data types too!
         keywords.put("INT", TokenType.INT);
+        keywords.put("FLOAT", TokenType.FLOAT);
         keywords.put("CHAR", TokenType.CHAR);
         keywords.put("BOOL", TokenType.BOOL);
-        keywords.put("FLOAT", TokenType.FLOAT);
-        // Handling both case variations for booleans to be safe,
-        // though spec notes "reserved words are capital" and "true/false" literals.
-        keywords.put("TRUE", TokenType.BOOL_LITERAL);
-        keywords.put("FALSE", TokenType.BOOL_LITERAL);
-        keywords.put("true", TokenType.BOOL_LITERAL);
-        keywords.put("false", TokenType.BOOL_LITERAL);
+
+        // And your other statement keywords...
+        keywords.put("PRINT", TokenType.PRINT);
+        keywords.put("SCAN", TokenType.SCAN);
+        keywords.put("IF", TokenType.IF);
+        keywords.put("ELSE", TokenType.ELSE);
+        keywords.put("REPEAT", TokenType.REPEAT);
+        keywords.put("WHEN", TokenType.WHEN);
+        keywords.put("FOR", TokenType.FOR);
+        keywords.put("AND", TokenType.AND);
+        keywords.put("OR", TokenType.OR);
+        keywords.put("NOT", TokenType.NOT);
     }
 
     public Lexer(String source) {
@@ -58,6 +70,7 @@ public class Lexer {
             case '&': addToken(TokenType.AMPERSAND); break;
             case '$': addToken(TokenType.DOLLAR); break; // Spec: $ signifies next line
             case '=': addToken(TokenType.EQUAL); break;
+            case ':': addToken(TokenType.COLON); break;
 
             case '%':
                 if (match('%')) {
