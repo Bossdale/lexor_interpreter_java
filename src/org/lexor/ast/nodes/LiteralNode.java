@@ -4,7 +4,7 @@ import org.lexor.lexer.Token;
 import org.lexor.ast.visitor.ASTVisitor;
 
 public class LiteralNode extends ExpressionNode {
-    public final Token valueToken; // e.g., an INT_LITERAL or BOOL_LITERAL token
+    public final Token valueToken;
 
     public LiteralNode(Token valueToken) {
         this.valueToken = valueToken;
