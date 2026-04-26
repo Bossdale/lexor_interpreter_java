@@ -5,4 +5,5 @@ public class IntValue implements RuntimeValue {
     public IntValue(int value) { this.value = value; }
     @Override public Object getValue() { return value; }
     @Override public String asString() { return String.valueOf(value); }
+    @Override public String toString() { return asString(); }
 }

@@ -5,4 +5,5 @@ public class StringValue implements RuntimeValue {
     public StringValue(String value) { this.value = value; }
     @Override public Object getValue() { return value; }
     @Override public String asString() { return value; }
+    @Override public String toString() { return asString(); }
 }

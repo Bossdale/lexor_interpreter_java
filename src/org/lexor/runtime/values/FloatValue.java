@@ -5,4 +5,5 @@ public class FloatValue implements RuntimeValue {
     public FloatValue(float value) { this.value = value; }
     @Override public Object getValue() { return value; }
     @Override public String asString() { return String.valueOf(value); }
+    @Override public String toString() { return asString(); }
 }
