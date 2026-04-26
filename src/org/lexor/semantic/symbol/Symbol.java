@@ -14,6 +14,7 @@ public class Symbol {
         this.name = name;
         this.type = type;
         this.line = line;
+        this.initialized = false;
     }
 
     public String getName() {
@@ -26,5 +27,13 @@ public class Symbol {
 
     public int getLine() {
         return line;
+    }
+
+    public boolean isInitialized() {
+        return initialized;
+    }
+
+    public void setInitialized(boolean initialized) {
+        this.initialized = initialized;
     }
 }

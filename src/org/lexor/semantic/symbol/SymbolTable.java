@@ -20,11 +20,14 @@ public class SymbolTable {
     //  This feeds the new Symbol constructor.
     //  public void define(String name, Type type, int line, boolean initialized) {
 
-    public void define(String name, Type type, int line) {
+    public void define(String name, Type type, int line, boolean initialized) {
         if (symbols.containsKey(name)) {
             throw new org.lexor.error.SemanticError(line, "Variable '" + name + "' is already declared in this scope.");
         }
-        symbols.put(name, new Symbol(name, type, line));
+        Symbol sym = new Symbol(name, type, line);
+        sym.setInitialized(initialized);
+        
+        symbols.put(name, sym);
     }
 
     public Symbol resolve(String name, int line) {
@@ -48,22 +51,22 @@ public class SymbolTable {
 
     // TODO: Returns a formatted string of all symbols for debug output.
     //       Useful for printing the symbol table state after semantic analysis.
-//    public String dump() {
-//        StringBuilder sb = new StringBuilder();
-//        sb.append("=== Symbol Table Dump ===\n");
-//        for (Symbol sym : symbols.values()) {
-//            sb.append(String.format("  %-15s | Type: %-6s | Line: %d | Init: %s\n",
-//                    sym.getName(),
-//                    sym.getType(),
-//                    sym.getLine(),
-//                    sym.isInitialized() ? "YES" : "NO"));
-//        }
-//        if (parent != null) {
-//            sb.append("--- Parent Scope ---\n");
-//            sb.append(parent.dump());
-//        }
-//        return sb.toString();
-//    }
+   public String dump() {
+       StringBuilder sb = new StringBuilder();
+       sb.append("=== Symbol Table Dump ===\n");
+       for (Symbol sym : symbols.values()) {
+           sb.append(String.format("  %-15s | Type: %-6s | Line: %d | Init: %s\n",
+                   sym.getName(),
+                   sym.getType(),
+                   sym.getLine(),
+                   sym.isInitialized() ? "YES" : "NO"));
+       }
+       if (parent != null) {
+           sb.append("--- Parent Scope ---\n");
+           sb.append(parent.dump());
+       }
+       return sb.toString();
+   }
 
 
 

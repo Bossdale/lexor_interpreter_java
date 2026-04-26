@@ -229,26 +229,22 @@ public class Interpreter implements ASTVisitor<RuntimeValue> {
     @Override
     public RuntimeValue visitBinaryExprNode(BinaryExprNode node) {
 
-        // TODO: Add EQUAL_EQUAL and NOT_EQUAL
+        // TODO (DONE by She!): Add EQUAL_EQUAL and NOT_EQUAL
 
         RuntimeValue left = node.left.accept(this);
         RuntimeValue right = node.right.accept(this);
 
         if (node.operator.type == TokenType.AMPERSAND) {
             String result = left.asString() + right.asString();
-            final String r = result;
-            return new RuntimeValue() {
-                @Override public Object getValue() { return r; }
-                @Override public String asString() { return r; }
-            };
+            return new StringValue(result);
         }
 
         // Equality/inequality can compare booleans or chars directly
         if (node.operator.type == TokenType.EQUAL_EQUAL) {
-            return new BoolValue(left.getValue().equals(right.getValue()));
+            return new BoolValue(lexorEquals(left, right));
         }
         if (node.operator.type == TokenType.NOT_EQUAL) {
-            return new BoolValue(!left.getValue().equals(right.getValue()));
+            return new BoolValue(!lexorEquals(left, right));
         }
 
         // Numeric operations only from here
@@ -324,7 +320,7 @@ public class Interpreter implements ASTVisitor<RuntimeValue> {
         return new CharValue('\n');
     }
 
-    // TODO: Add a type-aware equality check so INT and FLOAT values compare correctly.
+    // TODO (DONE by She!): Add a type-aware equality check so INT and FLOAT values compare correctly.
     //       Java's Integer(4).equals(Float(4.0f)) returns false, but LEXOR should
     //       treat them as equal when comparing numerics across INT and FLOAT.
 
