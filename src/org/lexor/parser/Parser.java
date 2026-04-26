@@ -52,14 +52,15 @@ public class Parser {
 
         do {
             Token identifier = consume(TokenType.IDENTIFIER, "Expected variable name.");
-            ExpressionNode initializer = null;
+
+            // CORRECTION: Use ASTNode and parseAssignmentRHS for chained declaration assignments!
+            ASTNode initializer = null;
             if (match(TokenType.EQUAL)) {
-                initializer = parseExpressionPDA();
+                initializer = parseAssignmentRHS();
             }
             decls.add(new VarDeclNode(typeToken, identifier, initializer));
         } while (match(TokenType.COMMA)); // Support comma-separated variables
 
-        consume(TokenType.DOLLAR, "Expected '$' at the end of declaration.");
         return decls;
     }
 
@@ -71,26 +72,20 @@ public class Parser {
         if (match(TokenType.FOR)) return parseFor();
 
         // Default to assignment if it starts with an identifier
-        return parseAssignment();
+        return parseAssignmentExpression();
     }
 
-    private StatementNode parseAssignment() {
-        StatementNode assignment = parseAssignmentExpression();
-        consume(TokenType.DOLLAR, "Expected '$' at the end of assignment.");
-        return assignment;
+    private ASTNode parseAssignmentRHS() {
+        if (check(TokenType.IDENTIFIER) && peekNext().type == TokenType.EQUAL) {
+            return parseAssignmentExpression();
+        }
+        return parseExpressionPDA();
     }
 
-    private StatementNode parseAssignmentExpression() {
-        // 1. Get the variable being assigned
+    private AssignmentNode parseAssignmentExpression() {
         Token name = consume(TokenType.IDENTIFIER, "Expected identifier for assignment.");
-
-        // 2. Consume the equals sign
         consume(TokenType.EQUAL, "Expected '=' after identifier.");
-
-        // 3. Parse the value (using your PDA to handle math/logic)
-        ExpressionNode value = parseExpressionPDA();
-
-        // Note: We do NOT consume TokenType.DOLLAR here!
+        ASTNode value = parseAssignmentRHS();
         return new AssignmentNode(name, value);
     }
 
@@ -105,8 +100,6 @@ public class Parser {
         while (match(TokenType.AMPERSAND)) {
             expressions.add(parseExpressionPDA());
         }
-
-        consume(TokenType.DOLLAR, "Expected '$' at the end of PRINT statement.");
         return new PrintNode(expressions);
     }
 
@@ -121,13 +114,15 @@ public class Parser {
         while (match(TokenType.COMMA)) {
             identifiers.add(consume(TokenType.IDENTIFIER, "Expected identifier after ','."));
         }
-
-        consume(TokenType.DOLLAR, "Expected '$' at the end of SCAN statement.");
         return new ScanNode(identifiers);
     }
 
     private StatementNode parseIf() {
+        // Spec requires: IF (<BOOL expression>)
+        consume(TokenType.LEFT_PAREN, "Expected '(' after 'IF'.");
         ExpressionNode condition = parseExpressionPDA();
+        consume(TokenType.RIGHT_PAREN, "Expected ')' after IF condition.");
+
         consume(TokenType.START, "Expected 'START' before 'IF' block.");
         consume(TokenType.IF, "Expected 'IF' after 'START'.");
 
@@ -135,19 +130,19 @@ public class Parser {
         List<IfNode.ElseIfPart> elseIfParts = new ArrayList<>();
         BlockNode elseBranch = null;
 
-        // Handle multiple ELSE IF alternatives
         while (match(TokenType.ELSE)) {
             if (match(TokenType.IF)) {
+                consume(TokenType.LEFT_PAREN, "Expected '(' after 'ELSE IF'.");
                 ExpressionNode elseIfCond = parseExpressionPDA();
+                consume(TokenType.RIGHT_PAREN, "Expected ')' after ELSE IF condition.");
                 consume(TokenType.START, "Expected 'START' for ELSE IF.");
                 consume(TokenType.IF, "Expected 'IF' after 'START'.");
                 elseIfParts.add(new IfNode.ElseIfPart(elseIfCond, parseBlock(TokenType.IF)));
             } else {
-                // Handle final ELSE
                 consume(TokenType.START, "Expected 'START' for ELSE.");
                 consume(TokenType.IF, "Expected 'IF' after 'START'.");
                 elseBranch = parseBlock(TokenType.IF);
-                break; // ELSE must be the last part
+                break;
             }
         }
         return new IfNode(condition, thenBranch, elseIfParts, elseBranch);
@@ -155,28 +150,27 @@ public class Parser {
 
     private StatementNode parseRepeat() {
         consume(TokenType.WHEN, "Expected 'WHEN' after 'REPEAT'.");
+        consume(TokenType.LEFT_PAREN, "Expected '(' after 'WHEN'.");
         ExpressionNode condition = parseExpressionPDA();
+        consume(TokenType.RIGHT_PAREN, "Expected ')' after REPEAT condition.");
         consume(TokenType.START, "Expected 'START' before loop.");
         consume(TokenType.REPEAT, "Expected 'REPEAT' after 'START'.");
-
-        BlockNode body = parseBlock(TokenType.REPEAT);
-        return new RepeatNode(condition, body);
+        return new RepeatNode(condition, parseBlock(TokenType.REPEAT));
     }
 
     private StatementNode parseFor() {
         consume(TokenType.LEFT_PAREN, "Expected '(' after 'FOR'.");
-        StatementNode init = parseAssignmentExpression(); // Helper without '$'
+        StatementNode init = parseAssignmentExpression();
         consume(TokenType.COMMA, "Expected ',' after init.");
         ExpressionNode cond = parseExpressionPDA();
         consume(TokenType.COMMA, "Expected ',' after condition.");
-        StatementNode update = parseAssignmentExpression(); // Helper without '$'
+        StatementNode update = parseAssignmentExpression();
         consume(TokenType.RIGHT_PAREN, "Expected ')' after header.");
 
         consume(TokenType.START, "Expected 'START' before 'FOR' block.");
         consume(TokenType.FOR, "Expected 'FOR' after 'START'.");
 
-        BlockNode body = parseBlock(TokenType.FOR);
-        return new ForNode(init, cond, update, body);
+        return new ForNode(init, cond, update, parseBlock(TokenType.FOR));
     }
 
     private BlockNode parseBlock(TokenType type) {
@@ -198,37 +192,40 @@ public class Parser {
         Stack<Token> operatorStack = new Stack<>();
         boolean expectingOperand = true;
 
-        // Keep parsing while we see numbers, variables, operators, or parenthesis
         while (isPartOfExpression(peek().type)) {
+            if (!expectingOperand && (isLiteralOrIdentifier(peek().type) || peek().type == TokenType.LEFT_PAREN)) {
+                break;
+            }
             Token token = advance();
 
             if (isLiteralOrIdentifier(token.type)) {
                 if (token.type == TokenType.IDENTIFIER) {
                     nodeStack.push(new IdentifierNode(token));
+                } else if (token.type == TokenType.DOLLAR) {
+                    // CORRECTION: Convert $ tokens into NewlineNodes!
+                    nodeStack.push(new NewlineNode());
                 } else {
                     nodeStack.push(new LiteralNode(token));
                 }
                 expectingOperand = false;
             }
             else if (token.type == TokenType.LEFT_PAREN) {
-                // PDA State: Push '(' to the operator stack
                 operatorStack.push(token);
                 expectingOperand = true;
             }
             else if (token.type == TokenType.RIGHT_PAREN) {
-                // PDA State: Pop and reduce until we find the matching '('
                 while (!operatorStack.isEmpty() && operatorStack.peek().type != TokenType.LEFT_PAREN) {
                     reduce(nodeStack, operatorStack);
                 }
                 if (operatorStack.isEmpty() || operatorStack.peek().type != TokenType.LEFT_PAREN) {
-                    throw new RuntimeException("Syntax Error at line " + token.line + ": Mismatched parentheses.");
+                    throw new org.lexor.error.SyntaxError(token.line, "Mismatched parentheses. Extra closing ')'.");
                 }
-                operatorStack.pop(); // Discard the '(' token
+                operatorStack.pop();
                 expectingOperand = false;
-            }else if (isOperator(token.type)) {
+            } else if (isOperator(token.type)) {
                 if (expectingOperand && (token.type == TokenType.MINUS || token.type == TokenType.PLUS || token.type == TokenType.NOT)) {
                     operatorStack.push(token);
-                }else {
+                } else {
                     while (!operatorStack.isEmpty() && precedence(operatorStack.peek().type) >= precedence(token.type)) {
                         reduce(nodeStack, operatorStack);
                     }
@@ -238,16 +235,15 @@ public class Parser {
             }
         }
 
-        // Final State: Reduce any remaining operators
         while (!operatorStack.isEmpty()) {
             if (operatorStack.peek().type == TokenType.LEFT_PAREN) {
-                throw new RuntimeException("Syntax Error: Mismatched parentheses.");
+                throw new org.lexor.error.SyntaxError(operatorStack.peek().line, "Mismatched parentheses. Missing closing ')'.");
             }
             reduce(nodeStack, operatorStack);
         }
 
         if (nodeStack.isEmpty()) {
-            throw new RuntimeException("Syntax Error: Invalid expression at line " + peek().line);
+            throw new org.lexor.error.SyntaxError(peek().line, "Invalid expression.");
         }
 
         return nodeStack.pop();
@@ -257,31 +253,25 @@ public class Parser {
         if (operatorStack.isEmpty()) return;
         Token operator = operatorStack.pop();
 
-        // 1. Handle Unary-Only Operators (NOT is always unary) [cite: 53-54]
         if (operator.type == TokenType.NOT) {
-            if (nodeStack.isEmpty()) throw new RuntimeException("Syntax Error: Missing operand for NOT.");
+            if (nodeStack.isEmpty()) throw new org.lexor.error.SyntaxError(operator.line, "Missing operand for NOT.");
             nodeStack.push(new UnaryExprNode(operator, nodeStack.pop()));
             return;
         }
 
-        // 2. Handle PLUS and MINUS (Can be Unary OR Binary) [cite: 41, 55-57]
         if (operator.type == TokenType.PLUS || operator.type == TokenType.MINUS) {
-            // If we only have one operand on the stack, it MUST be unary
-            // OR if the PDA logic specifically pushed it as a unary (based on your 'expectingOperand' flag)
             if (nodeStack.size() < 2) {
                 ExpressionNode right = nodeStack.pop();
                 nodeStack.push(new UnaryExprNode(operator, right));
             } else {
-                // Otherwise, treat as Binary
                 ExpressionNode right = nodeStack.pop();
                 ExpressionNode left = nodeStack.pop();
                 nodeStack.push(new BinaryExprNode(left, operator, right));
             }
         }
-        // 3. Handle Standard Binary/Logical Operators [cite: 40, 42-44, 51-52]
         else {
             if (nodeStack.size() < 2) {
-                throw new RuntimeException("Syntax Error at line " + operator.line + ": Missing operand for " + operator.lexeme);
+                throw new org.lexor.error.SyntaxError(operator.line, "Missing operand for " + operator.lexeme);
             }
             ExpressionNode right = nodeStack.pop();
             ExpressionNode left = nodeStack.pop();
@@ -294,30 +284,13 @@ public class Parser {
         }
     }
 
-    private boolean isUnary(TokenType type) {
-        return type == TokenType.NOT ||
-                type == TokenType.MINUS ||
-                type == TokenType.PLUS;
-    }
-
     private int precedence(TokenType type) {
         return switch (type) {
-            // Multiplicative operators (Highest arithmetic)
             case STAR, SLASH, MODULO -> 4;
-
-            // Additive and Concatenation operators
             case PLUS, MINUS, AMPERSAND -> 3;
-
-            // Relational / Comparison operators
             case GREATER, GREATER_EQUAL, LESS, LESS_EQUAL, EQUAL_EQUAL, NOT_EQUAL -> 2;
-
-            // Logical AND
             case AND -> 1;
-
-            // Logical OR (Lowest priority)
             case OR -> 0;
-
-            // Parentheses and others have no precedence relative to operators
             default -> -1;
         };
     }
@@ -330,17 +303,16 @@ public class Parser {
     private boolean isLiteralOrIdentifier(TokenType type) {
         return type == TokenType.INT_LITERAL || type == TokenType.FLOAT_LITERAL ||
                 type == TokenType.CHAR_LITERAL || type == TokenType.BOOL_LITERAL ||
-                type == TokenType.IDENTIFIER;
+                type == TokenType.STRING_LITERAL || type == TokenType.ESCAPE_LITERAL ||
+                type == TokenType.DOLLAR || type == TokenType.IDENTIFIER;
     }
 
     private boolean isOperator(TokenType type) {
-        return type == TokenType.PLUS || type == TokenType.MINUS ||
-                type == TokenType.STAR || type == TokenType.SLASH ||
-                type == TokenType.MODULO || type == TokenType.AMPERSAND ||
-                type == TokenType.GREATER || type == TokenType.GREATER_EQUAL ||
-                type == TokenType.LESS || type == TokenType.LESS_EQUAL ||
-                type == TokenType.EQUAL_EQUAL || type == TokenType.NOT_EQUAL ||
-                type == TokenType.AND || type == TokenType.OR || type == TokenType.NOT;
+        return type == TokenType.PLUS || type == TokenType.MINUS || type == TokenType.STAR || type == TokenType.SLASH ||
+                type == TokenType.MODULO || type == TokenType.AMPERSAND || type == TokenType.GREATER ||
+                type == TokenType.GREATER_EQUAL || type == TokenType.LESS || type == TokenType.LESS_EQUAL ||
+                type == TokenType.EQUAL_EQUAL || type == TokenType.NOT_EQUAL || type == TokenType.AND ||
+                type == TokenType.OR || type == TokenType.NOT;
     }
 
     private boolean match(TokenType... types) {
@@ -355,7 +327,7 @@ public class Parser {
 
     private Token consume(TokenType type, String message) {
         if (check(type)) return advance();
-        throw new RuntimeException("Syntax Error at line " + peek().line + ": " + message);
+        throw new org.lexor.error.SyntaxError(peek().line, message);
     }
 
     private boolean check(TokenType type) {
@@ -378,5 +350,9 @@ public class Parser {
 
     private Token previous() {
         return tokens.get(current - 1);
+    }
+
+    private Token peekNext() {
+        return (current + 1 >= tokens.size()) ? tokens.get(tokens.size() - 1) : tokens.get(current + 1);
     }
 }

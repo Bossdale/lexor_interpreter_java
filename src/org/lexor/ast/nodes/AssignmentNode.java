@@ -5,9 +5,9 @@ import org.lexor.ast.visitor.ASTVisitor;
 
 public class AssignmentNode extends StatementNode {
     public final Token identifier;
-    public final ExpressionNode value;
+    public final ASTNode value;
 
-    public AssignmentNode(Token identifier, ExpressionNode value) {
+    public AssignmentNode(Token identifier, ASTNode value) {
         this.identifier = identifier;
         this.value = value;
     }

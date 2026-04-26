@@ -1,26 +1,50 @@
 package org.lexor.runtime;
 
 import org.lexor.runtime.values.RuntimeValue;
+
 import java.util.HashMap;
 import java.util.Map;
 
 public class Environment {
-    // Maps variable names to their actual stored values during execution
-    private final Map<String, RuntimeValue> memory = new HashMap<>();
+    private final Environment parent;
+    private final Map<String, RuntimeValue> values = new HashMap<>();
 
-    // Used during declaration (e.g., DECLARE INT x = 5)
+    // Constructor for the Global Scope
+    public Environment() {
+        this.parent = null;
+    }
+
+    // Constructor for Local Scopes (Blocks)
+    public Environment(Environment parent) {
+        this.parent = parent;
+    }
+
+    // Defines a new variable in the CURRENT scope
     public void define(String name, RuntimeValue value) {
-        memory.put(name, value);
+        values.put(name, value);
     }
 
-    // Used during assignment (e.g., x = 10)
+    // Assigns an existing variable (checks current scope, then climbs to parents)
     public void assign(String name, RuntimeValue value) {
-        // We don't need to check if it exists here; Phase 3 already guaranteed it does!
-        memory.put(name, value);
+        if (values.containsKey(name)) {
+            values.put(name, value);
+            return;
+        }
+        if (parent != null) {
+            parent.assign(name, value);
+            return;
+        }
+        throw new RuntimeException("Undefined variable '" + name + "'.");
     }
 
-    // Used when evaluating variables in expressions (e.g., PRINT: x)
+    // Retrieves a variable (checks current scope, then climbs to parents)
     public RuntimeValue get(String name) {
-        return memory.get(name);
+        if (values.containsKey(name)) {
+            return values.get(name);
+        }
+        if (parent != null) {
+            return parent.get(name);
+        }
+        throw new RuntimeException("Undefined variable '" + name + "'.");
     }
 }

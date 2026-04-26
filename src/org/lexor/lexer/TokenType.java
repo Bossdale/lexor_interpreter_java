@@ -21,6 +21,8 @@ public enum TokenType {
     FLOAT_LITERAL,
     CHAR_LITERAL,
     BOOL_LITERAL,
+    STRING_LITERAL,
+    ESCAPE_LITERAL,
 
     // Reserved Keywords (Control Flow & I/O)
     SCRIPT, AREA, START, END,      // Program structure

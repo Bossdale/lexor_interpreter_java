@@ -5,5 +5,6 @@ public enum Type {
     FLOAT,  // 4-byte decimal
     CHAR,   // Single character
     BOOL,   // true / false
-    UNKNOWN // Used for semantic error handling
+    UNKNOWN,// Used for semantic error handling
+    STRING
 }

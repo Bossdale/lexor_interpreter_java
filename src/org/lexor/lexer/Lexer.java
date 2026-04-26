@@ -20,8 +20,6 @@ public class Lexer {
         keywords.put("AREA", TokenType.AREA);
         keywords.put("START", TokenType.START);
         keywords.put("END", TokenType.END);
-
-        // ADD THIS:
         keywords.put("DECLARE", TokenType.DECLARE);
 
         // Make sure you have your data types too!
@@ -61,16 +59,23 @@ public class Lexer {
         switch (c) {
             case '(': addToken(TokenType.LEFT_PAREN); break;
             case ')': addToken(TokenType.RIGHT_PAREN); break;
-            case '[': addToken(TokenType.LEFT_BRACKET); break;
-            case ']': addToken(TokenType.RIGHT_BRACKET); break;
             case '+': addToken(TokenType.PLUS); break;
             case '-': addToken(TokenType.MINUS); break;
             case '*': addToken(TokenType.STAR); break;
             case '/': addToken(TokenType.SLASH); break;
             case '&': addToken(TokenType.AMPERSAND); break;
             case '$': addToken(TokenType.DOLLAR); break; // Spec: $ signifies next line
-            case '=': addToken(TokenType.EQUAL); break;
             case ':': addToken(TokenType.COLON); break;
+            case ',': addToken(TokenType.COMMA); break;
+            case '=':
+                addToken(match('=') ? TokenType.EQUAL_EQUAL : TokenType.EQUAL);
+                break;
+            case '<':
+                addToken(match('>') ? TokenType.NOT_EQUAL : (match('=') ? TokenType.LESS_EQUAL : TokenType.LESS));
+                break;
+            case '>':
+                addToken(match('=') ? TokenType.GREATER_EQUAL : TokenType.GREATER);
+                break;
 
             case '%':
                 if (match('%')) {
@@ -81,8 +86,12 @@ public class Lexer {
                 }
                 break;
 
+            case '[': escape(); break;
+            case '"': case '“': case '”': string(c); break;
+            case '\'': case '‘': case '’': character(c); break;
+
             // Ignore whitespace
-             case ' ':
+            case ' ':
             case '\r':
             case '\t':
                 break;
@@ -97,11 +106,47 @@ public class Lexer {
                 } else if (isAlpha(c)) {
                     identifier();
                 } else {
-                    // Later, we will connect this to your custom error package
-                    System.err.println("Lexical Error at line " + line + ": Unexpected character '" + c + "'");
+                    // custom error package
+                    throw new org.lexor.error.LexicalError(line, "Unexpected character '" + c + "'");
                 }
                 break;
         }
+    }
+
+    private void escape() {
+        if (isAtEnd()) throw new org.lexor.error.LexicalError(line, "Unterminated escape sequence.");
+        char escapedChar = advance();
+        if (isAtEnd() || peek() != ']') {
+            throw new org.lexor.error.LexicalError(line, "Invalid escape format. Expected ']' after '" + escapedChar + "'.");
+        }
+        advance();
+        addToken(TokenType.ESCAPE_LITERAL);
+    }
+
+    private void string(char openingQuote) {
+        char closingQuote = (openingQuote == '“' || openingQuote == '”') ? '”' : '"';
+        while (peek() != closingQuote && !isAtEnd()) {
+            if (peek() == '\n') line++;
+            advance();
+        }
+        if (isAtEnd()) throw new org.lexor.error.LexicalError(line, "Unterminated string.");
+        advance();
+
+        String value = source.substring(start + 1, current - 1);
+        if (value.equalsIgnoreCase("TRUE") || value.equalsIgnoreCase("FALSE")) {
+            addToken(TokenType.BOOL_LITERAL);
+        } else {
+            addToken(TokenType.STRING_LITERAL);
+        }
+    }
+
+    private void character(char openingQuote) {
+        char closingQuote = (openingQuote == '‘' || openingQuote == '’') ? '’' : '\'';
+        if (isAtEnd()) throw new org.lexor.error.LexicalError(line, "Unterminated character.");
+        advance();
+        if (peek() != closingQuote) throw new org.lexor.error.LexicalError(line, "Missing closing quote.");
+        advance();
+        addToken(TokenType.CHAR_LITERAL);
     }
 
     private void identifier() {

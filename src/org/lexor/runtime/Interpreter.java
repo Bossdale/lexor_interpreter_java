@@ -2,6 +2,7 @@ package org.lexor.runtime;
 
 import org.lexor.ast.nodes.*;
 import org.lexor.ast.visitor.ASTVisitor;
+import org.lexor.error.RuntimeError;
 import org.lexor.lexer.TokenType;
 import org.lexor.runtime.values.*;
 
@@ -10,7 +11,7 @@ import java.util.Scanner;
 // Interprets the validated AST by executing its nodes sequentially
 public class Interpreter implements ASTVisitor<RuntimeValue> {
 
-    private final Environment environment;
+    private Environment environment;
     private final Scanner inputScanner;
 
     public Interpreter() {
@@ -59,7 +60,7 @@ public class Interpreter implements ASTVisitor<RuntimeValue> {
                 case FLOAT -> new FloatValue(0.0f);
                 case BOOL -> new BoolValue(false);
                 case CHAR -> new CharValue('\0');
-                default -> throw new RuntimeException("Unknown data type declaration.");
+                default -> throw new RuntimeError("Unknown data type declaration.");
             };
         }
 
@@ -72,7 +73,7 @@ public class Interpreter implements ASTVisitor<RuntimeValue> {
     public RuntimeValue visitAssignmentNode(AssignmentNode node) {
         RuntimeValue value = node.value.accept(this);
         environment.assign(node.identifier.lexeme, value);
-        return null;
+        return value;
     }
 
     @Override
@@ -87,23 +88,29 @@ public class Interpreter implements ASTVisitor<RuntimeValue> {
 
     @Override
     public RuntimeValue visitScanNode(ScanNode node) {
-        // Reads input for multiple variables dynamically
-        for (org.lexor.lexer.Token id : node.identifiers) {
-            String name = id.lexeme;
-            RuntimeValue currentVal = environment.get(name);
+        // LEXOR spec: multiple values are separated by comma
+        String line = inputScanner.nextLine().trim();
+        String[] parts = line.split("\\s*,\\s*");
 
-            // Using Java's Scanner to read the exact primitive type
-            if (currentVal instanceof IntValue) {
-                environment.assign(name, new IntValue(inputScanner.nextInt()));
-            } else if (currentVal instanceof FloatValue) {
-                environment.assign(name, new FloatValue(inputScanner.nextFloat()));
-            } else if (currentVal instanceof BoolValue) {
-                String input = inputScanner.next();
-                // Match standard input or LEXOR's "TRUE" literal format [cite: 11]
-                boolean isTrue = input.equalsIgnoreCase("\"TRUE\"") || input.equalsIgnoreCase("TRUE");
-                environment.assign(name, new BoolValue(isTrue));
-            } else if (currentVal instanceof CharValue) {
-                environment.assign(name, new CharValue(inputScanner.next().charAt(0)));
+        for (int i = 0; i < node.identifiers.size(); i++) {
+            String name = node.identifiers.get(i).lexeme;
+            RuntimeValue currentVal = environment.get(name);
+            String rawInput = (i < parts.length) ? parts[i].trim() : "";
+
+            try {
+                if (currentVal instanceof IntValue) {
+                    environment.assign(name, new IntValue(Integer.parseInt(rawInput)));
+                } else if (currentVal instanceof FloatValue) {
+                    environment.assign(name, new FloatValue(Float.parseFloat(rawInput)));
+                } else if (currentVal instanceof BoolValue) {
+                    boolean val = rawInput.equalsIgnoreCase("TRUE") || rawInput.equalsIgnoreCase("\"TRUE\"");
+                    environment.assign(name, new BoolValue(val));
+                } else if (currentVal instanceof CharValue) {
+                    char c = rawInput.isEmpty() ? '\0' : rawInput.charAt(0);
+                    environment.assign(name, new CharValue(c));
+                }
+            } catch (NumberFormatException e) {
+                throw new RuntimeError("Invalid input '" + rawInput + "' for variable '" + name + "'.");
             }
         }
         return null;
@@ -112,13 +119,13 @@ public class Interpreter implements ASTVisitor<RuntimeValue> {
     @Override
     public RuntimeValue visitIfNode(IfNode node) {
         // Check the primary IF condition [cite: 87, 93, 104]
-        if ((boolean) node.condition.accept(this).getValue()) {
+        if (isTruthy(node.condition.accept(this))) {
             node.thenBranch.accept(this);
         } else {
             boolean matched = false;
             // Iterate through ELSE IF parts if any [cite: 109]
             for (IfNode.ElseIfPart part : node.elseIfParts) {
-                if ((boolean) part.condition.accept(this).getValue()) {
+                if (isTruthy(part.condition.accept(this))) {
                     part.body.accept(this);
                     matched = true;
                     break;
@@ -132,30 +139,49 @@ public class Interpreter implements ASTVisitor<RuntimeValue> {
         return null;
     }
 
-    @Override
-    public RuntimeValue visitRepeatNode(RepeatNode node) {
-        // Standard Do-While loop: Repeats WHEN condition is true [cite: 125]
-        do {
-            node.body.accept(this);
-        } while ((boolean) node.condition.accept(this).getValue());
-        return null;
+    private boolean isTruthy(RuntimeValue val) {
+        Object v = val.getValue();
+        if (v instanceof Boolean b) return b;
+        throw new RuntimeError("Expected a BOOL condition but got: " + val.asString());
     }
 
     @Override
-    public RuntimeValue visitForNode(ForNode node) {
-        // Executes standard FOR loop: init -> condition -> update [cite: 120]
-        for (node.initialization.accept(this);
-             (boolean) node.condition.accept(this).getValue();
-             node.update.accept(this)) {
+    public RuntimeValue visitRepeatNode(RepeatNode node) {
+        // REPEAT WHEN is a while-loop: check condition BEFORE each iteration
+        while (isTruthy(node.condition.accept(this))) {
             node.body.accept(this);
         }
         return null;
     }
 
     @Override
+    public RuntimeValue visitForNode(ForNode node) {
+        Environment previous = this.environment;
+        this.environment = new Environment(previous);
+
+        try {
+            for (node.initialization.accept(this);
+                 isTruthy(node.condition.accept(this));
+                 node.update.accept(this)) {
+                node.body.accept(this);
+            }
+        } finally {
+            this.environment = previous;
+        }
+        return null;
+    }
+
+    @Override
     public RuntimeValue visitBlockNode(BlockNode node) {
-        for (StatementNode stmt : node.statements) {
-            stmt.accept(this);
+        Environment previous = this.environment;
+        this.environment = new Environment(previous);
+
+        try {
+            for (StatementNode stmt : node.statements) {
+                stmt.accept(this);
+            }
+        } finally {
+            this.environment = previous;
         }
         return null;
     }
@@ -170,13 +196,28 @@ public class Interpreter implements ASTVisitor<RuntimeValue> {
         return switch (node.valueToken.type) {
             case INT_LITERAL -> new IntValue(Integer.parseInt(lexeme));
             case FLOAT_LITERAL -> new FloatValue(Float.parseFloat(lexeme));
-            case BOOL_LITERAL -> new BoolValue(lexeme.contains("TRUE")); // Handles "TRUE" or TRUE
+            case BOOL_LITERAL -> new BoolValue(lexeme.toUpperCase().contains("TRUE")); // Handles "TRUE" or TRUE
             case CHAR_LITERAL -> {
                 // Strip the single quotes from the character literal (e.g., 'c')
                 if (lexeme.length() >= 3) yield new CharValue(lexeme.charAt(1));
                 yield new CharValue(lexeme.charAt(0));
             }
-            default -> throw new RuntimeException("Unrecognized literal format.");
+            case STRING_LITERAL -> {
+                // Strip the leading and trailing quotation marks
+                String rawString = lexeme.substring(1, lexeme.length() - 1);
+                yield new StringValue(rawString);
+            }
+            case ESCAPE_LITERAL -> {
+                // lexeme is 3 characters long (e.g., "[[]", "[]]", "[n]", "[#]")
+                char inner = lexeme.charAt(1);
+                char evaluated = switch (inner) {
+                    case 'n' -> '\n';
+                    case 't' -> '\t';
+                    default -> inner; // If it's '[', ']', '$', '&', '#', it returns exactly that character!
+                };
+                yield new CharValue(evaluated);
+            }
+            default -> throw new RuntimeError("Unrecognized literal format: " + node.valueToken.type);
         };
     }
 
@@ -187,39 +228,54 @@ public class Interpreter implements ASTVisitor<RuntimeValue> {
 
     @Override
     public RuntimeValue visitBinaryExprNode(BinaryExprNode node) {
+
+        // TODO: Add EQUAL_EQUAL and NOT_EQUAL
+
         RuntimeValue left = node.left.accept(this);
         RuntimeValue right = node.right.accept(this);
 
-        // If the operator is an ampersand, return an anonymous string representation [cite: 31]
         if (node.operator.type == TokenType.AMPERSAND) {
+            String result = left.asString() + right.asString();
+            final String r = result;
             return new RuntimeValue() {
-                @Override public Object getValue() { return left.asString() + right.asString(); }
-                @Override public String asString() { return left.asString() + right.asString(); }
+                @Override public Object getValue() { return r; }
+                @Override public String asString() { return r; }
             };
         }
 
-        // Float arithmetic promotion
+        // Equality/inequality can compare booleans or chars directly
+        if (node.operator.type == TokenType.EQUAL_EQUAL) {
+            return new BoolValue(left.getValue().equals(right.getValue()));
+        }
+        if (node.operator.type == TokenType.NOT_EQUAL) {
+            return new BoolValue(!left.getValue().equals(right.getValue()));
+        }
+
+        // Numeric operations only from here
         boolean isFloat = (left instanceof FloatValue || right instanceof FloatValue);
-        float leftF = Float.parseFloat(left.asString());
-        float rightF = Float.parseFloat(right.asString());
+        float leftF, rightF;
+        try {
+            leftF = Float.parseFloat(left.asString());
+            rightF = Float.parseFloat(right.asString());
+        } catch (NumberFormatException e) {
+            throw new RuntimeError("Arithmetic operator '" + node.operator.lexeme +
+                    "' cannot be applied to non-numeric values.");
+        }
 
         return switch (node.operator.type) {
-            // Arithmetic
-            case PLUS -> isFloat ? new FloatValue(leftF + rightF) : new IntValue((int)(leftF + rightF));
+            case PLUS  -> isFloat ? new FloatValue(leftF + rightF) : new IntValue((int)(leftF + rightF));
             case MINUS -> isFloat ? new FloatValue(leftF - rightF) : new IntValue((int)(leftF - rightF));
-            case STAR -> isFloat ? new FloatValue(leftF * rightF) : new IntValue((int)(leftF * rightF));
-            case SLASH -> isFloat ? new FloatValue(leftF / rightF) : new IntValue((int)(leftF / rightF));
+            case STAR  -> isFloat ? new FloatValue(leftF * rightF) : new IntValue((int)(leftF * rightF));
+            case SLASH -> {
+                if (rightF == 0) throw new RuntimeError("Division by zero.");
+                yield isFloat ? new FloatValue(leftF / rightF) : new IntValue((int)(leftF / rightF));
+            }
             case MODULO -> isFloat ? new FloatValue(leftF % rightF) : new IntValue((int)(leftF % rightF));
-
-            // Relational [cite: 42-44, 48-50]
-            case GREATER -> new BoolValue(leftF > rightF);
-            case LESS -> new BoolValue(leftF < rightF);
+            case GREATER       -> new BoolValue(leftF > rightF);
+            case LESS          -> new BoolValue(leftF < rightF);
             case GREATER_EQUAL -> new BoolValue(leftF >= rightF);
-            case LESS_EQUAL -> new BoolValue(leftF <= rightF);
-            case EQUAL_EQUAL -> new BoolValue(left.getValue().equals(right.getValue()));
-            case NOT_EQUAL -> new BoolValue(!left.getValue().equals(right.getValue()));
-
-            default -> throw new RuntimeException("Unknown binary operator.");
+            case LESS_EQUAL    -> new BoolValue(leftF <= rightF);
+            default -> throw new RuntimeError("Unknown binary operator: " + node.operator.lexeme);
         };
     }
 
@@ -232,7 +288,7 @@ public class Interpreter implements ASTVisitor<RuntimeValue> {
         return switch (node.operator.type) {
             case AND -> new BoolValue(leftVal && rightVal);
             case OR -> new BoolValue(leftVal || rightVal);
-            default -> throw new RuntimeException("Unknown logical operator.");
+            default -> throw new RuntimeError("Unknown logical operator.");
         };
     }
 
@@ -266,5 +322,21 @@ public class Interpreter implements ASTVisitor<RuntimeValue> {
     public RuntimeValue visitNewlineNode(NewlineNode node) {
         // The $ token produces a carriage return/newline character [cite: 30]
         return new CharValue('\n');
+    }
+
+    // TODO: Add a type-aware equality check so INT and FLOAT values compare correctly.
+    //       Java's Integer(4).equals(Float(4.0f)) returns false, but LEXOR should
+    //       treat them as equal when comparing numerics across INT and FLOAT.
+
+    private boolean lexorEquals(RuntimeValue left, RuntimeValue right) {
+        // Both numeric: promote to float for comparison
+        if ((left instanceof IntValue || left instanceof FloatValue) &&
+                (right instanceof IntValue || right instanceof FloatValue)) {
+            float l = Float.parseFloat(left.asString());
+            float r = Float.parseFloat(right.asString());
+            return l == r;
+        }
+        // Same type: use normal equals
+        return left.getValue().equals(right.getValue());
     }
 }

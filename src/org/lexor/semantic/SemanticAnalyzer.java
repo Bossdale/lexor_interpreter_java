@@ -7,10 +7,10 @@ import org.lexor.semantic.symbol.SymbolTable;
 import org.lexor.semantic.symbol.Type;
 
 public class SemanticAnalyzer implements ASTVisitor<Type> {
-    private final SymbolTable symbolTable;
+    private SymbolTable currentScope;
 
     public SemanticAnalyzer() {
-        this.symbolTable = new SymbolTable();
+        this.currentScope = new SymbolTable();
     }
 
     // Main entry point for Phase 3
@@ -21,10 +21,10 @@ public class SemanticAnalyzer implements ASTVisitor<Type> {
     // Helper to map Lexer Tokens to Semantic Types
     private Type determineType(TokenType tokenType) {
         return switch (tokenType) {
-            case INT -> Type.INT;       // [cite: 33]
-            case FLOAT -> Type.FLOAT;   // [cite: 36]
-            case CHAR -> Type.CHAR;     // [cite: 34]
-            case BOOL -> Type.BOOL;     // [cite: 35]
+            case INT -> Type.INT;
+            case FLOAT -> Type.FLOAT;
+            case CHAR -> Type.CHAR;
+            case BOOL -> Type.BOOL;
             default -> Type.UNKNOWN;
         };
     }
@@ -53,14 +53,16 @@ public class SemanticAnalyzer implements ASTVisitor<Type> {
         String varName = decl.identifier.lexeme;
         Type type = determineType(decl.dataType.type);
 
-        symbolTable.define(varName, type, decl.identifier.line);
+        // TODO: Pass whether this declaration includes an initializer value.
+        //  update the define call and mark initialized
+        currentScope.define(varName, type, decl.identifier.line);
 
         if (decl.initializer != null) {
             Type initializerType = decl.initializer.accept(this);
 
             if (type != initializerType && !(type == Type.FLOAT && initializerType == Type.INT)) {
-                throw new RuntimeException("Semantic Error at line " + decl.identifier.line +
-                        ": Type mismatch. Cannot assign " + initializerType + " to " + type + " variable '" + varName + "'.");
+                throw new org.lexor.error.SemanticError(decl.identifier.line,
+                        "Type mismatch. Cannot assign " + initializerType + " to " + type + " variable '" + varName + "'.");
             }
         }
         return null;
@@ -75,14 +77,17 @@ public class SemanticAnalyzer implements ASTVisitor<Type> {
     // Verifies the variable exists and ensures the assigned value strictly matches its declared type.
     @Override
     public Type visitAssignmentNode(AssignmentNode node) {
-        Type varType = symbolTable.resolve(node.identifier.lexeme, node.identifier.line).getType();
+        Type varType = currentScope.resolve(node.identifier.lexeme, node.identifier.line).getType();
         Type valueType = node.value.accept(this);
 
         if (varType != valueType && !(varType == Type.FLOAT && valueType == Type.INT)) {
-            throw new RuntimeException("Semantic Error at line " + node.identifier.line +
-                    ": Type mismatch in assignment. Cannot assign " + valueType + " to " + varType + ".");
+            throw new org.lexor.error.SemanticError(node.identifier.line,
+                    "Type mismatch in assignment. Cannot assign " + valueType + " to " + varType + ".");
         }
-        return null;
+
+        // TODO: Mark the variable as initialized once it receives an assignment.
+        //  mark the variable initialized:
+        return varType;
     }
 
     // Evaluates each expression to be printed to ensure variables exist and operations are valid.
@@ -98,7 +103,7 @@ public class SemanticAnalyzer implements ASTVisitor<Type> {
     @Override
     public Type visitScanNode(ScanNode node) {
         for (org.lexor.lexer.Token id : node.identifiers) {
-            symbolTable.resolve(id.lexeme, id.line); // Throws error if variable wasn't declared
+            currentScope.resolve(id.lexeme, id.line); // Throws error if variable wasn't declared
         }
         return null;
     }
@@ -108,13 +113,13 @@ public class SemanticAnalyzer implements ASTVisitor<Type> {
     public Type visitIfNode(IfNode node) {
         Type condType = node.condition.accept(this);
         if (condType != Type.BOOL) {
-            throw new RuntimeException("Semantic Error: IF condition must evaluate to a BOOL.");
+            throw new org.lexor.error.SemanticError(-1, "IF condition must evaluate to a BOOL.");
         }
         node.thenBranch.accept(this);
 
         for (IfNode.ElseIfPart elseIf : node.elseIfParts) {
             if (elseIf.condition.accept(this) != Type.BOOL) {
-                throw new RuntimeException("Semantic Error: ELSE IF condition must evaluate to a BOOL.");
+                throw new org.lexor.error.SemanticError(-1, "ELSE IF condition must evaluate to a BOOL.");
             }
             elseIf.body.accept(this);
         }
@@ -130,7 +135,7 @@ public class SemanticAnalyzer implements ASTVisitor<Type> {
     public Type visitRepeatNode(RepeatNode node) {
         Type condType = node.condition.accept(this);
         if (condType != Type.BOOL) {
-            throw new RuntimeException("Semantic Error: REPEAT WHEN condition must evaluate to a BOOL.");
+            throw new org.lexor.error.SemanticError(-1, "REPEAT WHEN condition must evaluate to a BOOL.");
         }
         node.body.accept(this);
         return null;
@@ -142,7 +147,7 @@ public class SemanticAnalyzer implements ASTVisitor<Type> {
         node.initialization.accept(this);
         Type condType = node.condition.accept(this);
         if (condType != Type.BOOL) {
-            throw new RuntimeException("Semantic Error: FOR loop condition must evaluate to a BOOL.");
+            throw new org.lexor.error.SemanticError(-1, "FOR loop condition must evaluate to a BOOL.");
         }
         node.update.accept(this);
         node.body.accept(this);
@@ -152,9 +157,16 @@ public class SemanticAnalyzer implements ASTVisitor<Type> {
     // Sequentially validates all statements contained within a code block.
     @Override
     public Type visitBlockNode(BlockNode node) {
+        // Push a new local scope
+        SymbolTable previousScope = this.currentScope;
+        this.currentScope = new SymbolTable(previousScope);
+
         for (StatementNode stmt : node.statements) {
             stmt.accept(this);
         }
+
+        // Pop the local scope when the block ends
+        this.currentScope = previousScope;
         return null;
     }
 
@@ -172,14 +184,18 @@ public class SemanticAnalyzer implements ASTVisitor<Type> {
             case FLOAT_LITERAL -> Type.FLOAT;
             case CHAR_LITERAL -> Type.CHAR;
             case BOOL_LITERAL -> Type.BOOL;
+            case STRING_LITERAL -> Type.STRING;
             default -> Type.UNKNOWN;
         };
     }
 
     // Retrieves the variable's declared type from the symbol table, verifying its existence.
+
+    // TODO: Warn (or error) when a variable is read before being assigned any value.
+    //       This catches bugs like: DECLARE INT x  then  PRINT: x  with no assignment.
     @Override
     public Type visitIdentifierNode(IdentifierNode node) {
-        return symbolTable.resolve(node.name.lexeme, node.name.line).getType();
+        return currentScope.resolve(node.name.lexeme, node.name.line).getType();
     }
 
     // Evaluates both operands to determine the resulting data type based on the specific binary operator.
@@ -207,7 +223,7 @@ public class SemanticAnalyzer implements ASTVisitor<Type> {
         Type rightType = node.right.accept(this);
 
         if (leftType != Type.BOOL || rightType != Type.BOOL) {
-            throw new RuntimeException("Semantic Error at line " + node.operator.line + ": Logical operators AND/OR require BOOL operands.");
+            throw new org.lexor.error.SemanticError(node.operator.line, "Logical operators AND/OR require BOOL operands.");
         }
         return Type.BOOL;
     }
@@ -218,12 +234,12 @@ public class SemanticAnalyzer implements ASTVisitor<Type> {
         Type rightType = node.right.accept(this);
 
         if (node.operator.type == TokenType.NOT) {
-            if (rightType != Type.BOOL) throw new RuntimeException("Semantic Error: NOT requires a BOOL.");
+            if (rightType != Type.BOOL) throw new org.lexor.error.SemanticError(node.operator.line, "NOT requires a BOOL.");
             return Type.BOOL;
         }
 
         if (rightType != Type.INT && rightType != Type.FLOAT) {
-            throw new RuntimeException("Semantic Error: Unary +/- requires an INT or FLOAT.");
+            throw new org.lexor.error.SemanticError(node.operator.line, "Unary +/- requires an INT or FLOAT.");
         }
         return rightType;
     }
@@ -239,5 +255,9 @@ public class SemanticAnalyzer implements ASTVisitor<Type> {
         return type == TokenType.GREATER || type == TokenType.GREATER_EQUAL ||
                 type == TokenType.LESS || type == TokenType.LESS_EQUAL ||
                 type == TokenType.EQUAL_EQUAL || type == TokenType.NOT_EQUAL;
+    }
+
+    public SymbolTable getSymbolTable() {
+        return currentScope;
     }
 }
