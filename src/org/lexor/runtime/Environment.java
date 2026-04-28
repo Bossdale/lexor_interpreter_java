@@ -1,6 +1,7 @@
 package org.lexor.runtime;
 
 import org.lexor.runtime.values.RuntimeValue;
+import org.lexor.error.RuntimeError;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -34,7 +35,7 @@ public class Environment {
             parent.assign(name, value);
             return;
         }
-        throw new RuntimeException("Undefined variable '" + name + "'.");
+        throw new RuntimeError("Undefined variable '" + name + "'. It may not have been declared.");
     }
 
     // Retrieves a variable (checks current scope, then climbs to parents)
@@ -45,6 +46,6 @@ public class Environment {
         if (parent != null) {
             return parent.get(name);
         }
-        throw new RuntimeException("Undefined variable '" + name + "'.");
+        throw new RuntimeError("Undefined variable '" + name + "'. It may not have been declared.");
     }
 }

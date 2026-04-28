@@ -3,6 +3,7 @@ package org.lexor.semantic;
 import org.lexor.ast.nodes.*;
 import org.lexor.ast.visitor.ASTVisitor;
 import org.lexor.lexer.TokenType;
+import org.lexor.semantic.symbol.Symbol;
 import org.lexor.semantic.symbol.SymbolTable;
 import org.lexor.semantic.symbol.Type;
 
@@ -53,16 +54,15 @@ public class SemanticAnalyzer implements ASTVisitor<Type> {
         String varName = decl.identifier.lexeme;
         Type type = determineType(decl.dataType.type);
 
-        // TODO: Pass whether this declaration includes an initializer value.
-        //  update the define call and mark initialized
-        currentScope.define(varName, type, decl.identifier.line);
+        boolean hasInit = decl.initializer != null;
+        currentScope.define(varName, type, decl.identifier.line, hasInit);
 
-        if (decl.initializer != null) {
+        if (hasInit) {
             Type initializerType = decl.initializer.accept(this);
-
             if (type != initializerType && !(type == Type.FLOAT && initializerType == Type.INT)) {
                 throw new org.lexor.error.SemanticError(decl.identifier.line,
-                        "Type mismatch. Cannot assign " + initializerType + " to " + type + " variable '" + varName + "'.");
+                        "Type mismatch. Cannot assign " + initializerType +
+                                " to " + type + " variable '" + varName + "'.");
             }
         }
         return null;
@@ -77,7 +77,8 @@ public class SemanticAnalyzer implements ASTVisitor<Type> {
     // Verifies the variable exists and ensures the assigned value strictly matches its declared type.
     @Override
     public Type visitAssignmentNode(AssignmentNode node) {
-        Type varType = currentScope.resolve(node.identifier.lexeme, node.identifier.line).getType();
+        Symbol sym = currentScope.resolve(node.identifier.lexeme, node.identifier.line);
+        Type varType = sym.getType();
         Type valueType = node.value.accept(this);
 
         if (varType != valueType && !(varType == Type.FLOAT && valueType == Type.INT)) {
@@ -85,8 +86,7 @@ public class SemanticAnalyzer implements ASTVisitor<Type> {
                     "Type mismatch in assignment. Cannot assign " + valueType + " to " + varType + ".");
         }
 
-        // TODO: Mark the variable as initialized once it receives an assignment.
-        //  mark the variable initialized:
+        sym.markInitialized();
         return varType;
     }
 
@@ -103,7 +103,8 @@ public class SemanticAnalyzer implements ASTVisitor<Type> {
     @Override
     public Type visitScanNode(ScanNode node) {
         for (org.lexor.lexer.Token id : node.identifiers) {
-            currentScope.resolve(id.lexeme, id.line); // Throws error if variable wasn't declared
+            Symbol sym = currentScope.resolve(id.lexeme, id.line);
+            sym.markInitialized();
         }
         return null;
     }
@@ -191,11 +192,18 @@ public class SemanticAnalyzer implements ASTVisitor<Type> {
 
     // Retrieves the variable's declared type from the symbol table, verifying its existence.
 
-    // TODO: Warn (or error) when a variable is read before being assigned any value.
-    //       This catches bugs like: DECLARE INT x  then  PRINT: x  with no assignment.
     @Override
     public Type visitIdentifierNode(IdentifierNode node) {
-        return currentScope.resolve(node.name.lexeme, node.name.line).getType();
+        Symbol sym = currentScope.resolve(node.name.lexeme, node.name.line);
+
+        // TODO: Warn (or error) when a variable is read before being assigned any value.
+        //       This catches bugs like: DECLARE INT x  then  PRINT: x  with no assignment.
+        if (!sym.isInitialized()) {
+            throw new org.lexor.error.SemanticError(node.name.line,
+                    "Variable '" + node.name.lexeme + "' is used before being initialized.");
+        }
+
+        return sym.getType();
     }
 
     // Evaluates both operands to determine the resulting data type based on the specific binary operator.
@@ -205,11 +213,23 @@ public class SemanticAnalyzer implements ASTVisitor<Type> {
         Type rightType = node.right.accept(this);
 
         if (node.operator.type == TokenType.AMPERSAND) {
-            return Type.CHAR;
+            return Type.STRING;
         }
         if (isRelationalOperator(node.operator.type)) {
             return Type.BOOL;
         }
+
+        boolean leftNumeric  = (leftType == Type.INT || leftType == Type.FLOAT);
+        boolean rightNumeric = (rightType == Type.INT || rightType == Type.FLOAT);
+
+        if (!leftNumeric || !rightNumeric) {
+            throw new org.lexor.error.SemanticError(
+                    node.operator.line,
+                    "Operator '" + node.operator.lexeme + "' requires numeric (INT or FLOAT) operands, " +
+                            "but got " + leftType + " and " + rightType + "."
+            );
+        }
+
         if (leftType == Type.FLOAT || rightType == Type.FLOAT) {
             return Type.FLOAT;
         }

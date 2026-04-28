@@ -16,41 +16,63 @@ import java.util.List;
 public class Main {
     public static void main(String[] args) {
 
-        // TODO — Add --debug flag to Main.java to toggle AST and symbol table output
-        //  Right now, the ASTPrinter exists but is never called anywhere.
-        //  It's dead code. The Main.java also always prints "--- LEXOR OUTPUT ---" unconditionally.
-        //  A --debug flag would make the ASTPrinter and symbol table dump actually usable.
+        boolean debugMode = false;
+        String filePath = "sample_scripts/test_program.lxr";
 
-        // TODO: Support a --debug flag that prints the AST and symbol table.
-        //       Usage: java Main <file.lxr> [--debug]
-        //       Without --debug, only program output is shown (clean mode).
-
-        // If no file is passed via terminal, default to our test script
-        String filePath = (args.length == 1) ? args[0] : "sample_scripts/test_program.lxr";
+        for (String arg : args) {
+            if (arg.equals("--debug")) {
+                debugMode = true;
+            } else {
+                filePath = arg;
+            }
+        }
 
         try {
-            // Read the entire .lxr file into a String
             String sourceCode = new String(Files.readAllBytes(Paths.get(filePath)));
 
             // PHASE 1: Lexical Analysis
             Lexer lexer = new Lexer(sourceCode);
             List<Token> tokens = lexer.scanTokens();
 
-            // PHASE 2 & 3: Syntax Analysis (Parser)
+            if (debugMode) {
+                System.out.println("=== PHASE 1: TOKENS ===");
+                for (Token t : tokens) {
+                    System.out.printf("  %-20s | %-15s | Line %d%n",
+                            t.type, t.lexeme, t.line);
+                }
+            }
+
+            // PHASE 2: Parsing
             Parser parser = new Parser(tokens);
             ProgramNode astRoot = parser.parse();
 
-            // PHASE 4: Semantic Analysis
+            if (debugMode) {
+                System.out.println("\n=== PHASE 2: AST ===");
+                // TODO: ASTPrinter is already implemented — wire it in here.
+                org.lexor.ast.visitor.ASTPrinter printer = new org.lexor.ast.visitor.ASTPrinter();
+                System.out.println(printer.print(astRoot));
+            }
+
+            // PHASE 3: Semantic Analysis
             SemanticAnalyzer analyzer = new SemanticAnalyzer();
             analyzer.analyze(astRoot);
 
-            // PHASE 5: Execution (Interpreter)
-            System.out.println("--- LEXOR OUTPUT ---");
+            if (debugMode) {
+                System.out.println("\n=== PHASE 3: SEMANTIC ANALYSIS PASSED ===");
+                System.out.println(analyzer.getSymbolTable().dump());
+            }
+
+            // PHASE 4: Execution
+            if (!debugMode) System.out.println("--- LEXOR OUTPUT ---");
             Interpreter interpreter = new Interpreter();
             interpreter.interpret(astRoot);
 
+            // In Main.java, update the catch blocks at the bottom:
         } catch (IOException e) {
             System.err.println("Error reading file: Could not find or open '" + filePath + "'");
+        } catch (org.lexor.error.RuntimeError e) {
+            System.err.println("\n[EXECUTION FAILED]");
+            System.err.println(e.getMessage());
         } catch (LexorException e) {
             System.err.println("\n[COMPILATION FAILED]");
             System.err.println(e.getMessage());

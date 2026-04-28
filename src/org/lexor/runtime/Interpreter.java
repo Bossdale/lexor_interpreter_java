@@ -21,11 +21,7 @@ public class Interpreter implements ASTVisitor<RuntimeValue> {
 
     // Main entry point for Phase 4
     public void interpret(ProgramNode program) {
-        try {
-            program.accept(this);
-        } catch (Exception e) {
-            System.err.println("Runtime Error: " + e.getMessage());
-        }
+        program.accept(this);
     }
 
     // =========================================================================
@@ -277,14 +273,14 @@ public class Interpreter implements ASTVisitor<RuntimeValue> {
 
     @Override
     public RuntimeValue visitLogicalExprNode(LogicalExprNode node) {
-        boolean leftVal = (boolean) node.left.accept(this).getValue();
-        boolean rightVal = (boolean) node.right.accept(this).getValue();
+        // TODO: Use isTruthy() instead of raw cast for safe, consistent boolean evaluation.
+        boolean leftVal  = isTruthy(node.left.accept(this));
+        boolean rightVal = isTruthy(node.right.accept(this));
 
-        // AND requires both to be true; OR requires at least one [cite: 51-52]
         return switch (node.operator.type) {
             case AND -> new BoolValue(leftVal && rightVal);
-            case OR -> new BoolValue(leftVal || rightVal);
-            default -> throw new RuntimeError("Unknown logical operator.");
+            case OR  -> new BoolValue(leftVal || rightVal);
+            default  -> throw new RuntimeError("Unknown logical operator: " + node.operator.lexeme);
         };
     }
 
@@ -292,21 +288,18 @@ public class Interpreter implements ASTVisitor<RuntimeValue> {
     public RuntimeValue visitUnaryExprNode(UnaryExprNode node) {
         RuntimeValue right = node.right.accept(this);
 
-        // NOT operator reverses BOOL values [cite: 53-54]
         if (node.operator.type == TokenType.NOT) {
-            return new BoolValue(!(boolean) right.getValue());
+            return new BoolValue(!isTruthy(right));
         }
 
-        // Positive/Negative unary operators [cite: 55-57]
         float value = Float.parseFloat(right.asString());
         boolean isFloat = right instanceof FloatValue;
 
         if (node.operator.type == TokenType.MINUS) {
-            return isFloat ? new FloatValue(-value) : new IntValue((int)-value);
+            return isFloat ? new FloatValue(-value) : new IntValue((int) -value);
         }
 
-        // Handles TokenType.PLUS natively
-        return right;
+        return right; // Handles PLUS (no-op)
     }
 
     @Override
@@ -319,10 +312,6 @@ public class Interpreter implements ASTVisitor<RuntimeValue> {
         // The $ token produces a carriage return/newline character [cite: 30]
         return new CharValue('\n');
     }
-
-    // TODO (DONE by She!): Add a type-aware equality check so INT and FLOAT values compare correctly.
-    //       Java's Integer(4).equals(Float(4.0f)) returns false, but LEXOR should
-    //       treat them as equal when comparing numerics across INT and FLOAT.
 
     private boolean lexorEquals(RuntimeValue left, RuntimeValue right) {
         // Both numeric: promote to float for comparison

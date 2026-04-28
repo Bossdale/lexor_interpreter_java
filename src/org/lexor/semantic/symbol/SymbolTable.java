@@ -16,18 +16,13 @@ public class SymbolTable {
     public SymbolTable(SymbolTable parent) {
         this.parent = parent;
     }
-    // TODO: Pass initialized=true when the declaration has an initializer, false otherwise.
-    //  This feeds the new Symbol constructor.
-    //  public void define(String name, Type type, int line, boolean initialized) {
 
     public void define(String name, Type type, int line, boolean initialized) {
         if (symbols.containsKey(name)) {
-            throw new org.lexor.error.SemanticError(line, "Variable '" + name + "' is already declared in this scope.");
+            throw new org.lexor.error.SemanticError(line,
+                    "Variable '" + name + "' is already declared in this scope.");
         }
-        Symbol sym = new Symbol(name, type, line);
-        sym.setInitialized(initialized);
-        
-        symbols.put(name, sym);
+        symbols.put(name, new Symbol(name, type, line, initialized));
     }
 
     public Symbol resolve(String name, int line) {
