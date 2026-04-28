@@ -192,7 +192,15 @@ public class Interpreter implements ASTVisitor<RuntimeValue> {
         return switch (node.valueToken.type) {
             case INT_LITERAL -> new IntValue(Integer.parseInt(lexeme));
             case FLOAT_LITERAL -> new FloatValue(Float.parseFloat(lexeme));
-            case BOOL_LITERAL -> new BoolValue(lexeme.toUpperCase().contains("TRUE")); // Handles "TRUE" or TRUE
+            case BOOL_LITERAL -> {
+                if (lexeme.equals("\"TRUE\"") || lexeme.equals("TRUE")) {
+                    yield new BoolValue(true);
+                } else if (lexeme.equals("\"FALSE\"") || lexeme.equals("FALSE")) {
+                    yield new BoolValue(false);
+                } else {
+                    throw new RuntimeError("Invalid BOOL literal: '" + lexeme + "'. Must be exactly \"TRUE\" or \"FALSE\" in uppercase.");
+                }
+            }
             case CHAR_LITERAL -> {
                 // Strip the single quotes from the character literal (e.g., 'c')
                 if (lexeme.length() >= 3) yield new CharValue(lexeme.charAt(1));
@@ -295,7 +303,7 @@ public class Interpreter implements ASTVisitor<RuntimeValue> {
         float value = Float.parseFloat(right.asString());
         boolean isFloat = right instanceof FloatValue;
 
-        if (node.operator.type == TokenType.MINUS) {
+        if (node.operator.type == TokenType.UNARY_MINUS) {
             return isFloat ? new FloatValue(-value) : new IntValue((int) -value);
         }
 

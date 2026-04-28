@@ -10,6 +10,9 @@ public enum TokenType {
     EQUAL,                         // = (Assignment)
     COMMA, COLON,                  // , :
 
+    // Unary Operators 
+    UNARY_PLUS, UNARY_MINUS,
+
     // Relational Operators
     GREATER, GREATER_EQUAL,        // >  >=
     LESS, LESS_EQUAL,              // <  <=

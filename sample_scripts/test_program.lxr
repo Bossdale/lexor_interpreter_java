@@ -1,22 +1,6 @@
 SCRIPT AREA
 START SCRIPT
-
-DECLARE INT global_var = 100
-DECLARE INT local_var = 0
-
-PRINT: "Global is: " & global_var & $
-
-IF (global_var == 100)
-START IF
-local_var = 50
-PRINT: "Inside IF! Local is: " & local_var & $
-global_var = 999
-END IF
-
-PRINT: "Global was changed to: " & global_var & $
-
-%% If you uncomment the line below, the compiler will catch it and FAIL
-%% because local_var was destroyed when the IF block ended!
-%% PRINT: local_var
-
+DECLARE INT count=5
+count='A'
+PRINT: count
 END SCRIPT

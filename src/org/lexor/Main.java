@@ -63,7 +63,7 @@ public class Main {
             }
 
             // PHASE 4: Execution
-            if (!debugMode) System.out.println("--- LEXOR OUTPUT ---");
+            if (!debugMode) System.out.println("\n--- LEXOR OUTPUT ---");
             Interpreter interpreter = new Interpreter();
             interpreter.interpret(astRoot);
 

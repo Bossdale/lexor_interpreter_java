@@ -195,7 +195,7 @@ public class Parser {
     }
 
     // =========================================================================
-    // FULL DPDA FOR EXPRESSIONS (Now with Parentheses support)
+    // FULL DPDA FOR EXPRESSIONS
     // =========================================================================
 
     private ExpressionNode parseExpressionPDA() {
@@ -213,7 +213,6 @@ public class Parser {
                 if (token.type == TokenType.IDENTIFIER) {
                     nodeStack.push(new IdentifierNode(token));
                 } else if (token.type == TokenType.DOLLAR) {
-                    // CORRECTION: Convert $ tokens into NewlineNodes!
                     nodeStack.push(new NewlineNode());
                 } else {
                     nodeStack.push(new LiteralNode(token));
@@ -233,16 +232,28 @@ public class Parser {
                 }
                 operatorStack.pop();
                 expectingOperand = false;
-            } else if (isOperator(token.type)) {
+            } 
+            else if (isOperator(token.type)) {
+                
+                // 1. UNARY OPERATOR CHECK: If we are expecting a number and see a minus/plus, it is unary!
                 if (expectingOperand && (token.type == TokenType.MINUS || token.type == TokenType.PLUS || token.type == TokenType.NOT)) {
-                    operatorStack.push(token);
-                } else {
+                    
+                    TokenType newType = (token.type == TokenType.MINUS) ? TokenType.UNARY_MINUS : 
+                                        (token.type == TokenType.PLUS) ? TokenType.UNARY_PLUS : TokenType.NOT;
+                    
+                    Token unaryToken = new Token(newType, token.lexeme, token.line);
+                    operatorStack.push(unaryToken);
+                    
+                } 
+                // 2. BINARY OPERATOR CHECK: Otherwise, process it as normal math
+                else {
                     while (!operatorStack.isEmpty() && precedence(operatorStack.peek().type) >= precedence(token.type)) {
                         reduce(nodeStack, operatorStack);
                     }
                     operatorStack.push(token);
                 }
-                expectingOperand = true;
+                
+                expectingOperand = true; // After any operator, we expect a number next
             }
         }
 
@@ -264,39 +275,31 @@ public class Parser {
         if (operatorStack.isEmpty()) return;
         Token operator = operatorStack.pop();
 
-        if (operator.type == TokenType.NOT) {
-            if (nodeStack.isEmpty()) throw new org.lexor.error.SyntaxError(operator.line, "Missing operand for NOT.");
+        // Explicitly handle Unary Operators first
+        if (operator.type == TokenType.NOT || operator.type == TokenType.UNARY_MINUS || operator.type == TokenType.UNARY_PLUS) {
+            if (nodeStack.isEmpty()) throw new org.lexor.error.SyntaxError(operator.line, "Missing operand for unary operator.");
             nodeStack.push(new UnaryExprNode(operator, nodeStack.pop()));
             return;
         }
 
-        if (operator.type == TokenType.PLUS || operator.type == TokenType.MINUS) {
-            if (nodeStack.size() < 2) {
-                ExpressionNode right = nodeStack.pop();
-                nodeStack.push(new UnaryExprNode(operator, right));
-            } else {
-                ExpressionNode right = nodeStack.pop();
-                ExpressionNode left = nodeStack.pop();
-                nodeStack.push(new BinaryExprNode(left, operator, right));
-            }
+        // Explicitly handle Binary Operators
+        if (nodeStack.size() < 2) {
+            throw new org.lexor.error.SyntaxError(operator.line, "Missing operand for " + operator.lexeme);
         }
-        else {
-            if (nodeStack.size() < 2) {
-                throw new org.lexor.error.SyntaxError(operator.line, "Missing operand for " + operator.lexeme);
-            }
-            ExpressionNode right = nodeStack.pop();
-            ExpressionNode left = nodeStack.pop();
+        
+        ExpressionNode right = nodeStack.pop();
+        ExpressionNode left = nodeStack.pop();
 
-            if (operator.type == TokenType.AND || operator.type == TokenType.OR) {
-                nodeStack.push(new LogicalExprNode(left, operator, right));
-            } else {
-                nodeStack.push(new BinaryExprNode(left, operator, right));
-            }
+        if (operator.type == TokenType.AND || operator.type == TokenType.OR) {
+            nodeStack.push(new LogicalExprNode(left, operator, right));
+        } else {
+            nodeStack.push(new BinaryExprNode(left, operator, right));
         }
     }
 
     private int precedence(TokenType type) {
         return switch (type) {
+            case UNARY_MINUS, UNARY_PLUS, NOT -> 5;
             case STAR, SLASH, MODULO -> 4;
             case PLUS, MINUS, AMPERSAND -> 3;
             case GREATER, GREATER_EQUAL, LESS, LESS_EQUAL, EQUAL_EQUAL, NOT_EQUAL -> 2;
