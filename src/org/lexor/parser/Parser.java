@@ -11,6 +11,7 @@ import java.util.Stack;
 public class Parser {
     private final List<Token> tokens;
     private int current = 0;
+    private int lastStatementLine = -1;
 
     public Parser(List<Token> tokens) {
         this.tokens = tokens;
@@ -25,6 +26,8 @@ public class Parser {
         consume(TokenType.AREA, "Expected 'AREA' after 'SCRIPT'.");
         consume(TokenType.START, "Expected 'START' keyword.");
         consume(TokenType.SCRIPT, "Expected 'SCRIPT' after 'START'.");
+
+        lastStatementLine = previous().line;
 
         List<VarDeclNode> declarations = new ArrayList<>();
         List<StatementNode> statements = new ArrayList<>();
@@ -46,33 +49,44 @@ public class Parser {
     }
 
     private List<VarDeclNode> parseVarDeclaration() {
+        int startLine = peek().line;
+        if (lastStatementLine != -1 && startLine <= lastStatementLine) {
+            throw new org.lexor.error.SyntaxError(startLine, "Multiple statements on a single line are not allowed.");
+        }
+
         List<VarDeclNode> decls = new ArrayList<>();
         consume(TokenType.DECLARE, "Expected 'DECLARE' keyword.");
-        Token typeToken = advance(); // INT, FLOAT, etc.
+        Token typeToken = advance();
 
         do {
             Token identifier = consume(TokenType.IDENTIFIER, "Expected variable name.");
-
-            // CORRECTION: Use ASTNode and parseAssignmentRHS for chained declaration assignments!
             ASTNode initializer = null;
             if (match(TokenType.EQUAL)) {
                 initializer = parseAssignmentRHS();
             }
             decls.add(new VarDeclNode(typeToken, identifier, initializer));
-        } while (match(TokenType.COMMA)); // Support comma-separated variables
+        } while (match(TokenType.COMMA));
 
+        lastStatementLine = previous().line; // Update the memory
         return decls;
     }
 
     private StatementNode parseStatement() {
-        if (match(TokenType.PRINT)) return parsePrint();
-        if (match(TokenType.SCAN)) return parseScan();
-        if (match(TokenType.IF)) return parseIf();
-        if (match(TokenType.REPEAT)) return parseRepeat();
-        if (match(TokenType.FOR)) return parseFor();
+        int startLine = peek().line;
+        if (lastStatementLine != -1 && startLine <= lastStatementLine) {
+            throw new org.lexor.error.SyntaxError(startLine, "Multiple statements on a single line are not allowed.");
+        }
 
-        // Default to assignment if it starts with an identifier
-        return parseAssignmentExpression();
+        StatementNode stmt;
+        if (match(TokenType.PRINT)) stmt = parsePrint();
+        else if (match(TokenType.SCAN)) stmt = parseScan();
+        else if (match(TokenType.IF)) stmt = parseIf();
+        else if (match(TokenType.REPEAT)) stmt = parseRepeat();
+        else if (match(TokenType.FOR)) stmt = parseFor();
+        else stmt = parseAssignmentExpression();
+
+        lastStatementLine = previous().line; // Update the memory
+        return stmt;
     }
 
     private ASTNode parseAssignmentRHS() {
