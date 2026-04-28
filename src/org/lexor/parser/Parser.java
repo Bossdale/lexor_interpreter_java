@@ -118,10 +118,7 @@ public class Parser {
     }
 
     private StatementNode parseIf() {
-        // Spec requires: IF (<BOOL expression>)
-        consume(TokenType.LEFT_PAREN, "Expected '(' after 'IF'.");
         ExpressionNode condition = parseExpressionPDA();
-        consume(TokenType.RIGHT_PAREN, "Expected ')' after IF condition.");
 
         consume(TokenType.START, "Expected 'START' before 'IF' block.");
         consume(TokenType.IF, "Expected 'IF' after 'START'.");
@@ -132,9 +129,9 @@ public class Parser {
 
         while (match(TokenType.ELSE)) {
             if (match(TokenType.IF)) {
-                consume(TokenType.LEFT_PAREN, "Expected '(' after 'ELSE IF'.");
+
                 ExpressionNode elseIfCond = parseExpressionPDA();
-                consume(TokenType.RIGHT_PAREN, "Expected ')' after ELSE IF condition.");
+
                 consume(TokenType.START, "Expected 'START' for ELSE IF.");
                 consume(TokenType.IF, "Expected 'IF' after 'START'.");
                 elseIfParts.add(new IfNode.ElseIfPart(elseIfCond, parseBlock(TokenType.IF)));
