@@ -12,7 +12,7 @@ public class Lexer {
     private int current = 0;
     private int line = 1;
 
-    // A map to quickly check if an identifier is actually a reserved keyword
+    // Keyword Table: maps reserved words to their token types
     private static final Map<String, TokenType> keywords;
     static {
         keywords = new HashMap<>();
@@ -22,13 +22,13 @@ public class Lexer {
         keywords.put("END", TokenType.END);
         keywords.put("DECLARE", TokenType.DECLARE);
 
-        // Make sure you have your data types too!
+        // Data Types
         keywords.put("INT", TokenType.INT);
         keywords.put("FLOAT", TokenType.FLOAT);
         keywords.put("CHAR", TokenType.CHAR);
         keywords.put("BOOL", TokenType.BOOL);
 
-        // And your other statement keywords...
+        // Other statement keywords
         keywords.put("PRINT", TokenType.PRINT);
         keywords.put("SCAN", TokenType.SCAN);
         keywords.put("IF", TokenType.IF);
@@ -47,7 +47,7 @@ public class Lexer {
 
     public List<Token> scanTokens() {
         while (!isAtEnd()) {
-            start = current; // Reset the start pointer for the next token
+            start = current; 
             scanToken();
         }
         tokens.add(new Token(TokenType.EOF, "", line));

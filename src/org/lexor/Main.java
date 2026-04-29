@@ -47,7 +47,7 @@ public class Main {
             ProgramNode astRoot = parser.parse();
 
             if (debugMode) {
-                System.out.println("\n=== PHASE 2: AST ===");
+                System.out.println("\n=== PHASE 2: Abstract Syntax Tree (AST) ===");
                 // TODO: ASTPrinter is already implemented — wire it in here.
                 org.lexor.ast.visitor.ASTPrinter printer = new org.lexor.ast.visitor.ASTPrinter();
                 System.out.println(printer.print(astRoot));
