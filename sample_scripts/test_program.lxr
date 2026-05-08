@@ -1,0 +1,9 @@
+SCRIPT AREA
+START SCRIPT
+DECLARE INT input1, input2, mathResult
+DECLARE BOOL logicResult
+SCAN: input1, input2
+mathResult = (input1 + input2) * -2
+logicResult = (mathResult < 0 AND input1 <> input2)
+PRINT: mathResult & $ & logicResult
+END SCRIPT
