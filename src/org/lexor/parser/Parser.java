@@ -18,7 +18,13 @@ public class Parser {
     }
 
     public ProgramNode parse() {
-        return parseProgram();
+        ProgramNode program = parseProgram();
+
+        if(!isAtEnd()){
+            throw new org.lexor.error.SyntaxError(peek().line, "Unexpected token after end of program");
+        }
+
+        return program;
     }
 
     private ProgramNode parseProgram() {
