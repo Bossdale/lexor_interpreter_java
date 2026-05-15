@@ -99,16 +99,26 @@ public class Interpreter implements ASTVisitor<RuntimeValue> {
                 } else if (currentVal instanceof FloatValue) {
                     environment.assign(name, new FloatValue(Float.parseFloat(rawInput)));
                 } else if (currentVal instanceof BoolValue) {
-                    boolean val = rawInput.equalsIgnoreCase("TRUE") || rawInput.equalsIgnoreCase("\"TRUE\"");
-                    environment.assign(name, new BoolValue(val));
+                    if (!rawInput.equalsIgnoreCase("TRUE") && !rawInput.equalsIgnoreCase("FALSE")) {
+                        throw new RuntimeError("Invalid input '" + rawInput + "' for variable '" + name + "'.");
+                    }
+                    environment.assign(name, new BoolValue(rawInput.equalsIgnoreCase("TRUE")));
                 } else if (currentVal instanceof CharValue) {
-                    char c = rawInput.isEmpty() ? '\0' : rawInput.charAt(0);
-                    environment.assign(name, new CharValue(c));
+                    if (rawInput.length() != 1) {
+                        throw new RuntimeError("Invalid CHAR input. Expected a single character but got: '" + rawInput + "'.");
+                    }
+                    environment.assign(name, new CharValue(rawInput.charAt(0)));
                 }
             } catch (NumberFormatException e) {
                 throw new RuntimeError("Invalid input '" + rawInput + "' for variable '" + name + "'.");
             }
         }
+
+        if (parts.length > node.identifiers.size()) {
+            throw new RuntimeError("Too many inputs provided. Expected " +
+                    node.identifiers.size() + " value(s), but got " + parts.length + ".");
+        }
+
         return null;
     }
 

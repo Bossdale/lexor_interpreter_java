@@ -216,6 +216,23 @@ public class SemanticAnalyzer implements ASTVisitor<Type> {
             return Type.STRING;
         }
         if (isRelationalOperator(node.operator.type)) {
+            boolean leftNumeric  = (leftType == Type.INT || leftType == Type.FLOAT);
+            boolean rightNumeric = (rightType == Type.INT || rightType == Type.FLOAT);
+            boolean bothNumeric  = leftNumeric && rightNumeric;
+            boolean sameType     = leftType == rightType;
+
+            if (node.operator.type == TokenType.EQUAL_EQUAL || node.operator.type == TokenType.NOT_EQUAL) {
+                if (!bothNumeric && !sameType) {
+                    throw new org.lexor.error.SemanticError(node.operator.line,
+                            "Type mismatch in comparison.");
+                }
+            } else {
+                // <, >, <=, >= require both operands to be numeric
+                if (!leftNumeric || !rightNumeric) {
+                    throw new org.lexor.error.SemanticError(node.operator.line,
+                            "Type mismatch in comparison.");
+                }
+            }
             return Type.BOOL;
         }
 
