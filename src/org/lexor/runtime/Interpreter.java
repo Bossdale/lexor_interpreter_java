@@ -49,8 +49,16 @@ public class Interpreter implements ASTVisitor<RuntimeValue> {
         // If it's initialized (e.g., DECLARE INT x = 5), evaluate the initializer
         if (node.initializer != null) {
             value = node.initializer.accept(this);
+            
+            // Implicit casting from INT to FLOAT on declaration ---
+            if (node.dataType.type == TokenType.FLOAT && value instanceof IntValue) {
+                int rawInt = (Integer) value.getValue();
+                value = new FloatValue((float) rawInt);
+            }
+            // --------------------------------------------------------------
+            
         } else {
-            // Otherwise, assign a default value based on type [cite: 33-36]
+            // Otherwise, assign a default value based on type
             value = switch (node.dataType.type) {
                 case INT -> new IntValue(0);
                 case FLOAT -> new FloatValue(0.0f);
