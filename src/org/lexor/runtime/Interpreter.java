@@ -107,10 +107,13 @@ public class Interpreter implements ASTVisitor<RuntimeValue> {
                 } else if (currentVal instanceof FloatValue) {
                     environment.assign(name, new FloatValue(Float.parseFloat(rawInput)));
                 } else if (currentVal instanceof BoolValue) {
-                    if (!rawInput.equalsIgnoreCase("TRUE") && !rawInput.equalsIgnoreCase("FALSE")) {
-                        throw new RuntimeError("Invalid input '" + rawInput + "' for variable '" + name + "'.");
+                    if (!rawInput.equals("TRUE") && !rawInput.equals("FALSE")) {
+                        throw new RuntimeError(
+                            "Invalid BOOL input '" + rawInput + "' for variable '" + name +
+                            "'. Expected exactly TRUE or FALSE in uppercase."
+                        );
                     }
-                    environment.assign(name, new BoolValue(rawInput.equalsIgnoreCase("TRUE")));
+                    environment.assign(name, new BoolValue(rawInput.equals("TRUE")));
                 } else if (currentVal instanceof CharValue) {
                     if (rawInput.length() != 1) {
                         throw new RuntimeError("Invalid CHAR input. Expected a single character but got: '" + rawInput + "'.");
