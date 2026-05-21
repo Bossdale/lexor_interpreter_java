@@ -138,8 +138,16 @@ public class Parser {
     }
 
     private StatementNode parseIf() {
+        // 1. Strictly enforce and consume the opening parenthesis BEFORE the expression starts
+        consume(TokenType.LEFT_PAREN, "Expected '(' after 'IF'.");
+
+        // 2. Parse the underlying conditional expression inside
         ExpressionNode condition = parseExpressionPDA();
 
+        // 3. Strictly enforce and consume the closing parenthesis AFTER the expression ends
+        consume(TokenType.RIGHT_PAREN, "Expected ')' after IF condition.");
+
+        // 4. Continue with the rest of your structural block layout
         consume(TokenType.START, "Expected 'START' before 'IF' block.");
         consume(TokenType.IF, "Expected 'IF' after 'START'.");
 
@@ -149,8 +157,10 @@ public class Parser {
 
         while (match(TokenType.ELSE)) {
             if (match(TokenType.IF)) {
-
+                // Enforce parentheses for ELSE IF alternatives as well!
+                consume(TokenType.LEFT_PAREN, "Expected '(' after 'ELSE IF'.");
                 ExpressionNode elseIfCond = parseExpressionPDA();
+                consume(TokenType.RIGHT_PAREN, "Expected ')' after ELSE IF condition.");
 
                 consume(TokenType.START, "Expected 'START' for ELSE IF.");
                 consume(TokenType.IF, "Expected 'IF' after 'START'.");
@@ -210,6 +220,21 @@ public class Parser {
         boolean expectingOperand = true;
 
         while (isPartOfExpression(peek().type)) {
+            if (peek().type == TokenType.RIGHT_PAREN) {
+                boolean hasMatchingLeftParen = false;
+                for (Token op : operatorStack) {
+                    if (op.type == TokenType.LEFT_PAREN) {
+                        hasMatchingLeftParen = true;
+                        break;
+                    }
+                }
+                // If this closing parenthesis doesn't belong to an expression group inside the PDA,
+                // break out and leave it for the caller (like parseIf, parseFor, parseRepeat) to consume.
+                if (!hasMatchingLeftParen) {
+                    break;
+                }
+            }
+
             if (!expectingOperand && (isLiteralOrIdentifier(peek().type) || peek().type == TokenType.LEFT_PAREN)) {
                 break;
             }
