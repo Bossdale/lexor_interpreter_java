@@ -1,0 +1,9 @@
+SCRIPT AREA
+START SCRIPT
+DECLARE INT i=0, sum=0
+FOR(i=1, i<=5, i=i+1)
+START FOR
+sum=sum+i
+END FOR
+PRINT: sum
+END SCRIPT

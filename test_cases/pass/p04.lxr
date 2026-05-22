@@ -1,0 +1,9 @@
+SCRIPT AREA
+START SCRIPT
+DECLARE INT i
+FOR (i=10, i < 5, i=i+1)
+START FOR
+    PRINT: "never"
+END FOR
+PRINT: "done"
+END SCRIPT

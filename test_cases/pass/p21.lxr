@@ -1,0 +1,9 @@
+SCRIPT AREA
+START SCRIPT
+DECLARE BOOL active
+active="FALSE"
+IF (NOT active)
+START IF
+    PRINT: "inactive"
+END IF
+END SCRIPT

@@ -1,0 +1,10 @@
+SCRIPT AREA
+START SCRIPT
+DECLARE INT i, acc
+acc=0
+FOR (i=1, acc < 10, i=i+1)
+START FOR
+    acc=acc+i
+END FOR
+PRINT: acc & " " & i
+END SCRIPT

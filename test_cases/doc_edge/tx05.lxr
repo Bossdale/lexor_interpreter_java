@@ -1,0 +1,16 @@
+SCRIPT AREA
+START SCRIPT
+DECLARE INT i=0, j=0
+FOR(i=1, i<=2, i=i+1)
+START FOR
+    REPEAT WHEN (j == 2)
+    START REPEAT
+        j=j+1
+        IF (i == j)
+        START IF
+        PRINT: i & j & $
+        END IF
+    END REPEAT
+    j=0
+END FOR
+END SCRIPT

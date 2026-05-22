@@ -1,0 +1,7 @@
+SCRIPT AREA
+START SCRIPT
+DECLARE INT x, y, z=10
+x=1
+y=2
+PRINT: x & y & z
+END SCRIPT

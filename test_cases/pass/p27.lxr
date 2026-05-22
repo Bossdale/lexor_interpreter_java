@@ -1,0 +1,10 @@
+SCRIPT AREA
+START SCRIPT
+DECLARE BOOL a, b
+a="TRUE"
+b="TRUE"
+IF (a == b)
+START IF
+    PRINT: "equal"
+END IF
+END SCRIPT

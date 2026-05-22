@@ -164,26 +164,19 @@ public class Interpreter implements ASTVisitor<RuntimeValue> {
 
     @Override
     public RuntimeValue visitRepeatNode(RepeatNode node) {
-        // REPEAT WHEN is a while-loop: check condition BEFORE each iteration
-        while (isTruthy(node.condition.accept(this))) {
+        // REPEAT WHEN is a do-while: execute body first, stop WHEN condition becomes true
+        do {
             node.body.accept(this);
-        }
+        } while (!isTruthy(node.condition.accept(this)));
         return null;
     }
 
     @Override
     public RuntimeValue visitForNode(ForNode node) {
-        Environment previous = this.environment;
-        this.environment = new Environment(previous);
-
-        try {
-            for (node.initialization.accept(this);
-                 isTruthy(node.condition.accept(this));
-                 node.update.accept(this)) {
-                node.body.accept(this);
-            }
-        } finally {
-            this.environment = previous;
+        for (node.initialization.accept(this);
+             isTruthy(node.condition.accept(this));
+             node.update.accept(this)) {
+            node.body.accept(this);
         }
         return null;
     }

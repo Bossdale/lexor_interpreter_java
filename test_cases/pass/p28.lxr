@@ -1,0 +1,8 @@
+SCRIPT AREA
+START SCRIPT
+DECLARE INT x
+DECLARE BOOL result
+x=7
+result=(x > 5 AND x < 10)
+PRINT: result
+END SCRIPT

@@ -1,0 +1,17 @@
+SCRIPT AREA
+START SCRIPT
+DECLARE INT x=1
+IF (x == 1)
+START IF
+    IF (x == 1)
+    START IF
+        IF (x == 1)
+        START IF
+            IF (x == 1)
+            START IF
+            PRINT: "DEEP"
+            END IF
+        END IF
+    END IF
+END IF
+END SCRIPT

@@ -1,0 +1,10 @@
+SCRIPT AREA
+START SCRIPT
+DECLARE INT x
+x=5
+IF (x > 0)
+START IF
+    %% x is definitely positive here
+    PRINT: "positive"
+END IF
+END SCRIPT

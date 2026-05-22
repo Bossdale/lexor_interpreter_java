@@ -1,0 +1,8 @@
+SCRIPT AREA
+START SCRIPT
+DECLARE INT i, limit
+FOR (i=0, i < limit, i=i+1)
+START FOR
+    PRINT: i
+END FOR
+END SCRIPT

@@ -1,0 +1,15 @@
+SCRIPT AREA
+START SCRIPT
+DECLARE INT x, result
+x=3
+result=0
+IF (x > 5)
+START IF
+    result=100
+END IF
+ELSE
+START IF
+    result=200
+END IF
+PRINT: result
+END SCRIPT

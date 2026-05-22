@@ -1,0 +1,9 @@
+SCRIPT AREA
+START SCRIPT
+DECLARE BOOL a, b, c, result
+a="FALSE"
+b="FALSE"
+c="TRUE"
+result=(a OR b AND c)
+PRINT: result
+END SCRIPT

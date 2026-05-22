@@ -201,12 +201,14 @@ public class Parser {
     }
 
     private BlockNode parseBlock(TokenType type) {
+        int savedLine = lastStatementLine;
         List<StatementNode> statements = new ArrayList<>();
         while (!check(TokenType.END) && !isAtEnd()) {
             statements.add(parseStatement());
         }
         consume(TokenType.END, "Expected 'END' for " + type);
         consume(type, "Expected " + type + " after 'END'.");
+        lastStatementLine = savedLine;
         return new BlockNode(statements);
     }
 

@@ -1,0 +1,17 @@
+SCRIPT AREA
+START SCRIPT
+DECLARE INT n
+n=0
+IF (n > 0)
+START IF
+    PRINT: "positive"
+END IF
+ELSE IF (n < 0)
+START IF
+    PRINT: "negative"
+END IF
+ELSE
+START IF
+    PRINT: "zero"
+END IF
+END SCRIPT
