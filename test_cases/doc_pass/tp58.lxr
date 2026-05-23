@@ -1,11 +1,11 @@
 SCRIPT AREA
 START SCRIPT
 DECLARE INT i=0, j=0
-REPEAT WHEN (i == 2)
+REPEAT WHEN (i <> 2)
 START REPEAT
     i=i+1
     j=0
-    REPEAT WHEN (j == 2)
+    REPEAT WHEN (j <> 2)
     START REPEAT
         j=j+1
         PRINT: i & j & $

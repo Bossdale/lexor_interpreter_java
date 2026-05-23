@@ -2,7 +2,7 @@ SCRIPT AREA
 START SCRIPT
 DECLARE BOOL done
 done="FALSE"
-REPEAT WHEN (done)
+REPEAT WHEN (NOT done)
 START REPEAT
     PRINT: "once"
     done="TRUE"

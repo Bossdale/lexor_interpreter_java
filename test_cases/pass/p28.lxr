@@ -1,8 +1,14 @@
 SCRIPT AREA
 START SCRIPT
-DECLARE INT x
-DECLARE BOOL result
-x=7
-result=(x > 5 AND x < 10)
-PRINT: result
+DECLARE INT n, i=1, j
+SCAN: n
+REPEAT WHEN (i <= n)
+START REPEAT
+	FOR (j = 1, j <= n, j=j+1)
+	START FOR
+		PRINT: "*"
+	END FOR
+	i= i + 1
+PRINT: $
+END REPEAT
 END SCRIPT

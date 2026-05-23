@@ -2,7 +2,7 @@ SCRIPT AREA
 START SCRIPT
 DECLARE INT count, i
 count=0
-REPEAT WHEN (count >= 2)
+REPEAT WHEN (count < 2)
 START REPEAT
     FOR (i=0, i < 2, i=i+1)
     START FOR

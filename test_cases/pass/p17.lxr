@@ -4,7 +4,7 @@ DECLARE INT i, j
 FOR (i=0, i < 2, i=i+1)
 START FOR
     j=0
-    REPEAT WHEN (j >= 2)
+    REPEAT WHEN (j < 2)
     START REPEAT
         PRINT: i & j & " "
         j=j+1
