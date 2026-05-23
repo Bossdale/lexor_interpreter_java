@@ -1,0 +1,8 @@
+SCRIPT AREA
+START SCRIPT
+DECLARE STRING a, b, c
+a="Hello"
+b=" World"
+c=a & b
+PRINT: c
+END SCRIPT

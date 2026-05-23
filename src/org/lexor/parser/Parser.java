@@ -3,6 +3,8 @@ package org.lexor.parser;
 import org.lexor.ast.nodes.*;
 import org.lexor.lexer.Token;
 import org.lexor.lexer.TokenType;
+import org.lexor.ast.nodes.BreakNode;
+import org.lexor.ast.nodes.ContinueNode;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -89,6 +91,8 @@ public class Parser {
         else if (match(TokenType.IF)) stmt = parseIf();
         else if (match(TokenType.REPEAT)) stmt = parseRepeat();
         else if (match(TokenType.FOR)) stmt = parseFor();
+        else if (match(TokenType.BREAK)) stmt = new BreakNode();
+        else if (match(TokenType.CONTINUE)) stmt = new ContinueNode();
         else stmt = parseAssignmentExpression();
 
         lastStatementLine = previous().line; // Update the memory

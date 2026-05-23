@@ -1,0 +1,14 @@
+SCRIPT AREA
+START SCRIPT
+DECLARE INT i
+i=1
+REPEAT WHEN (i <= 100)
+START REPEAT
+    IF (i > 5)
+    START IF
+        BREAK
+    END IF
+    PRINT: i & " "
+    i=i+1
+END REPEAT
+END SCRIPT

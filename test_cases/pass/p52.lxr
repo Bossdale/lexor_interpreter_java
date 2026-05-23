@@ -1,0 +1,15 @@
+SCRIPT AREA
+START SCRIPT
+DECLARE INT i
+i=1
+REPEAT WHEN (i <= 10)
+START REPEAT
+    IF (i == 4 OR i == 7)
+    START IF
+        i=i+1
+        CONTINUE
+    END IF
+    PRINT: i & " "
+    i=i+1
+END REPEAT
+END SCRIPT

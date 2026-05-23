@@ -5,6 +5,8 @@ import org.lexor.ast.visitor.ASTVisitor;
 import org.lexor.error.RuntimeError;
 import org.lexor.lexer.TokenType;
 import org.lexor.runtime.values.*;
+import org.lexor.runtime.BreakSignal;
+import org.lexor.runtime.ContinueSignal;
 
 import java.util.Scanner;
 
@@ -64,6 +66,7 @@ public class Interpreter implements ASTVisitor<RuntimeValue> {
                 case FLOAT -> new FloatValue(0.0f);
                 case BOOL -> new BoolValue(false);
                 case CHAR -> new CharValue('\0');
+                case STRING -> new StringValue("");
                 default -> throw new RuntimeError("Unknown data type declaration.");
             };
         }
@@ -119,6 +122,8 @@ public class Interpreter implements ASTVisitor<RuntimeValue> {
                         throw new RuntimeError("Invalid CHAR input. Expected a single character but got: '" + rawInput + "'.");
                     }
                     environment.assign(name, new CharValue(rawInput.charAt(0)));
+                } else if (currentVal instanceof StringValue) {
+                    environment.assign(name, new StringValue(rawInput));
                 }
             } catch (NumberFormatException e) {
                 throw new RuntimeError("Invalid input '" + rawInput + "' for variable '" + name + "'.");
@@ -164,20 +169,46 @@ public class Interpreter implements ASTVisitor<RuntimeValue> {
 
     @Override
     public RuntimeValue visitRepeatNode(RepeatNode node) {
-        while (isTruthy(node.condition.accept(this))) {
-            node.body.accept(this);
+        try {
+            while (isTruthy(node.condition.accept(this))) {
+                try {
+                    node.body.accept(this);
+                } catch (ContinueSignal e) {
+                    // skip remainder of body, re-check condition
+                }
+            }
+        } catch (BreakSignal e) {
+            // exit loop
         }
         return null;
     }
 
     @Override
     public RuntimeValue visitForNode(ForNode node) {
-        for (node.initialization.accept(this);
-             isTruthy(node.condition.accept(this));
-             node.update.accept(this)) {
-            node.body.accept(this);
+        try {
+            for (node.initialization.accept(this);
+                 isTruthy(node.condition.accept(this));
+                 node.update.accept(this)) {
+                try {
+                    node.body.accept(this);
+                } catch (ContinueSignal e) {
+                    // skip remainder of body; Java for-loop runs update naturally
+                }
+            }
+        } catch (BreakSignal e) {
+            // exit loop
         }
         return null;
+    }
+
+    @Override
+    public RuntimeValue visitBreakNode(BreakNode node) {
+        throw new BreakSignal();
+    }
+
+    @Override
+    public RuntimeValue visitContinueNode(ContinueNode node) {
+        throw new ContinueSignal();
     }
 
     @Override

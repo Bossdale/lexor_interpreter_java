@@ -1,0 +1,6 @@
+SCRIPT AREA
+START SCRIPT
+DECLARE STRING name
+SCAN: name
+PRINT: "Welcome, " & name & "!"
+END SCRIPT

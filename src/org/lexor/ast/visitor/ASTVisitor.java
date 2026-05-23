@@ -19,4 +19,6 @@ public interface ASTVisitor<T> {
     T visitForNode(ForNode node);
     T visitLogicalExprNode(LogicalExprNode node);
     T visitNewlineNode(NewlineNode node);
+    T visitBreakNode(BreakNode node);
+    T visitContinueNode(ContinueNode node);
 }

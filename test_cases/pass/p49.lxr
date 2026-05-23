@@ -1,0 +1,12 @@
+SCRIPT AREA
+START SCRIPT
+DECLARE INT i
+FOR (i=1, i <= 10, i=i+1)
+START FOR
+    IF (i == 5)
+    START IF
+        BREAK
+    END IF
+    PRINT: i & " "
+END FOR
+END SCRIPT

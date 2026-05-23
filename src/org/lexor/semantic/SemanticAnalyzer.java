@@ -9,6 +9,7 @@ import org.lexor.semantic.symbol.Type;
 
 public class SemanticAnalyzer implements ASTVisitor<Type> {
     private SymbolTable currentScope;
+    private int loopDepth = 0;
 
     public SemanticAnalyzer() {
         this.currentScope = new SymbolTable();
@@ -26,6 +27,7 @@ public class SemanticAnalyzer implements ASTVisitor<Type> {
             case FLOAT -> Type.FLOAT;
             case CHAR -> Type.CHAR;
             case BOOL -> Type.BOOL;
+            case STRING -> Type.STRING;
             default -> Type.UNKNOWN;
         };
     }
@@ -59,7 +61,10 @@ public class SemanticAnalyzer implements ASTVisitor<Type> {
 
         if (hasInit) {
             Type initializerType = decl.initializer.accept(this);
-            if (type != initializerType && !(type == Type.FLOAT && initializerType == Type.INT)) {
+            boolean compatible = type == initializerType
+                    || (type == Type.FLOAT && initializerType == Type.INT)
+                    || (type == Type.STRING && initializerType == Type.CHAR);
+            if (!compatible) {
                 throw new org.lexor.error.SemanticError(decl.identifier.line,
                         "Type mismatch. Cannot assign " + initializerType +
                                 " to " + type + " variable '" + varName + "'.");
@@ -81,7 +86,10 @@ public class SemanticAnalyzer implements ASTVisitor<Type> {
         Type varType = sym.getType();
         Type valueType = node.value.accept(this);
 
-        if (varType != valueType && !(varType == Type.FLOAT && valueType == Type.INT)) {
+        boolean compatible = varType == valueType
+                || (varType == Type.FLOAT && valueType == Type.INT)
+                || (varType == Type.STRING && valueType == Type.CHAR);
+        if (!compatible) {
             throw new org.lexor.error.SemanticError(node.identifier.line,
                     "Type mismatch in assignment. Cannot assign " + valueType + " to " + varType + ".");
         }
@@ -138,7 +146,9 @@ public class SemanticAnalyzer implements ASTVisitor<Type> {
         if (condType != Type.BOOL) {
             throw new org.lexor.error.SemanticError(-1, "REPEAT WHEN condition must evaluate to a BOOL.");
         }
+        loopDepth++;
         node.body.accept(this);
+        loopDepth--;
         return null;
     }
 
@@ -151,7 +161,25 @@ public class SemanticAnalyzer implements ASTVisitor<Type> {
             throw new org.lexor.error.SemanticError(-1, "FOR loop condition must evaluate to a BOOL.");
         }
         node.update.accept(this);
+        loopDepth++;
         node.body.accept(this);
+        loopDepth--;
+        return null;
+    }
+
+    @Override
+    public Type visitBreakNode(BreakNode node) {
+        if (loopDepth == 0) {
+            throw new org.lexor.error.SemanticError(-1, "BREAK must be used inside a loop.");
+        }
+        return null;
+    }
+
+    @Override
+    public Type visitContinueNode(ContinueNode node) {
+        if (loopDepth == 0) {
+            throw new org.lexor.error.SemanticError(-1, "CONTINUE must be used inside a loop.");
+        }
         return null;
     }
 

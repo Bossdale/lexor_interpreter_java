@@ -30,9 +30,10 @@ public enum TokenType {
     // Reserved Keywords (Control Flow & I/O)
     SCRIPT, AREA, START, END,      // Program structure
     DECLARE,                       // Declaration marker
-    INT, CHAR, BOOL, FLOAT,        // Data types
+    INT, CHAR, BOOL, FLOAT, STRING, // Data types
     IF, ELSE,                      // Conditionals
     REPEAT, WHEN, FOR,             // Loops
+    BREAK, CONTINUE,               // Loop control
     SCAN, PRINT,                   // I/O
     AND, OR, NOT,                  // Logical operators
 

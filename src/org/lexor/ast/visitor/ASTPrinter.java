@@ -170,4 +170,14 @@ public class ASTPrinter implements ASTVisitor<String> {
     public String visitNewlineNode(NewlineNode node) {
         return "$";
     }
+
+    @Override
+    public String visitBreakNode(BreakNode node) {
+        return "(Break)";
+    }
+
+    @Override
+    public String visitContinueNode(ContinueNode node) {
+        return "(Continue)";
+    }
 }

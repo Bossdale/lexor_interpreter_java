@@ -27,6 +27,7 @@ public class Lexer {
         keywords.put("FLOAT", TokenType.FLOAT);
         keywords.put("CHAR", TokenType.CHAR);
         keywords.put("BOOL", TokenType.BOOL);
+        keywords.put("STRING", TokenType.STRING);
 
         // Other statement keywords
         keywords.put("PRINT", TokenType.PRINT);
@@ -36,6 +37,8 @@ public class Lexer {
         keywords.put("REPEAT", TokenType.REPEAT);
         keywords.put("WHEN", TokenType.WHEN);
         keywords.put("FOR", TokenType.FOR);
+        keywords.put("BREAK", TokenType.BREAK);
+        keywords.put("CONTINUE", TokenType.CONTINUE);
         keywords.put("AND", TokenType.AND);
         keywords.put("OR", TokenType.OR);
         keywords.put("NOT", TokenType.NOT);
